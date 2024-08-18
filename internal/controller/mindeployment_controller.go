@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	deploymentv1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
 	v1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
@@ -90,6 +91,13 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			},
 			Spec: minDeployment.Spec.Template.Spec,
 		}
+
+		// Set OwnerReference to ensure the pod is controlled by the MinDeployment resource
+		if err := controllerutil.SetControllerReference(minDeployment, newPod, r.Scheme); err != nil {
+			r.Log.Error("Failed to set controller reference", "namespace", req.Namespace, "name", req.Name, "error", err)
+			return ctrl.Result{}, err
+		}
+
 		if err := r.Create(ctx, newPod); err != nil {
 			r.Log.Error("Failed to create new pod", "namespace", req.Namespace, "name", req.Name, "error", err)
 			return ctrl.Result{}, err
