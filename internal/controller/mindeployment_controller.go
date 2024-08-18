@@ -109,6 +109,7 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MinDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Log = slog.Default()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deploymentv1.MinDeployment{}).
 		Complete(r)
