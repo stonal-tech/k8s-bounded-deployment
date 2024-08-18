@@ -55,33 +55,48 @@ type MinDeploymentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.Log.Info("Reconciling MinDeployment", "namespace", req.Namespace, "name", req.Name)
+	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
+	log.Info("Reconciling MinDeployment")
 
 	// Fetch the MinDeployment instance
 	minDeployment := &v1.MinDeployment{} // Using the correct path here
 	err := r.Get(ctx, req.NamespacedName, minDeployment)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("MinDeployment not found. Ignoring since it must have been deleted", "namespace", req.Namespace, "name", req.Name)
+			log.Info("MinDeployment not found. Ignoring since it must have been deleted")
 			return ctrl.Result{}, nil
 		}
 		r.Log.Error("Failed to get MinDeployment", "error", err)
 		return ctrl.Result{}, err
 	}
 
+	// Check if the MinDeployment is valid
+	if err := minDeployment.Check(); err != nil {
+		log.Error("Invalid MinDeployment", "error", err)
+		return ctrl.Result{}, err
+	}
+
 	// Get the current list of pods
 	podList := &corev1.PodList{}
-	err = r.List(ctx, podList, client.InNamespace(req.Namespace), client.MatchingLabels(minDeployment.Spec.Template.Labels))
+	err = r.List(
+		ctx,
+		podList,
+		client.InNamespace(req.Namespace),
+		client.MatchingLabels(minDeployment.Spec.Template.Labels),
+	)
 	if err != nil {
-		r.Log.Error("Failed to list pods", "namespace", req.Namespace, "name", req.Name, "error", err)
+		log.Error("Failed to list pods", "err", err)
 		return ctrl.Result{}, err
 	}
 
 	podCount := len(podList.Items)
-	r.Log.Info("Current pod count", "namespace", req.Namespace, "name", req.Name, "count", podCount)
+	log = log.With("podCount", podCount)
+	log.Info("Counted pod")
+
+	minDeployment.Status.Replicas = podCount
 
 	if podCount < minDeployment.Spec.Replicas {
-		r.Log.Info("Pod count below desired replicas, creating new pod", "namespace", req.Namespace, "name", req.Name)
+		log.Info("Creating pod", "minReplicas", minDeployment.Spec.Replicas, "currentReplicas", podCount)
 		// Create a new Pod
 		newPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -94,22 +109,32 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		// Set OwnerReference to ensure the pod is controlled by the MinDeployment resource
 		if err := controllerutil.SetControllerReference(minDeployment, newPod, r.Scheme); err != nil {
-			r.Log.Error("Failed to set controller reference", "namespace", req.Namespace, "name", req.Name, "error", err)
+			log.Error("Failed to set controller reference", "err", err)
 			return ctrl.Result{}, err
 		}
 
 		if err := r.Create(ctx, newPod); err != nil {
-			r.Log.Error("Failed to create new pod", "namespace", req.Namespace, "name", req.Name, "error", err)
+			log.Error("Failed to create new pod", "err", err)
 			return ctrl.Result{}, err
 		}
+		minDeployment.Status.NbPodsCreated++
 	} else if minDeployment.Spec.MaxReplicas != nil && podCount > *minDeployment.Spec.MaxReplicas {
-		r.Log.Info("Pod count above max replicas, deleting a pod", "namespace", req.Namespace, "name", req.Name)
+		log.Info("Deleting a pod", "maxReplicas", *minDeployment.Spec.MaxReplicas)
 		// Delete an existing Pod
 		podToDelete := podList.Items[0]
 		if err := r.Delete(ctx, &podToDelete); err != nil {
-			r.Log.Error("Failed to delete pod", "namespace", req.Namespace, "name", req.Name, "error", err)
+			r.Log.Error("Failed to delete pod", "err", err)
 			return ctrl.Result{}, err
 		}
+		minDeployment.Status.NbPodsDeleted++
+	} else {
+		log.Debug("No action required")
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.Status().Update(ctx, minDeployment); err != nil {
+		log.Error("Failed to update MinDeployment status", "err", err)
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -120,5 +145,6 @@ func (r *MinDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Log = slog.Default()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deploymentv1.MinDeployment{}).
+		Owns(&corev1.Pod{}).
 		Complete(r)
 }

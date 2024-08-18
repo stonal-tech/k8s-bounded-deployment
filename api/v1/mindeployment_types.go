@@ -17,6 +17,9 @@ limitations under the License.
 package v1
 
 import (
+	"errors"
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,7 +46,9 @@ type MinDeploymentSpec struct {
 // MinDeploymentStatus defines the observed state of MinDeployment
 type MinDeploymentStatus struct {
 	// Current number of replicas
-	Replicas int `json:"replicas,omitempty"`
+	Replicas      int `json:"replicas,omitempty"`
+	NbPodsCreated int `json:"nbPodsCreated,omitempty"`
+	NbPodsDeleted int `json:"nbPodsDeleted,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -56,6 +61,19 @@ type MinDeployment struct {
 
 	Spec   MinDeploymentSpec   `json:"spec,omitempty"`
 	Status MinDeploymentStatus `json:"status,omitempty"`
+}
+
+var ErrInvalidMinMaxReplicas = errors.New("Invalid min/max replicas")
+
+// Check validates the MinDeployment.
+func (m *MinDeployment) Check() error {
+	if m.Spec.Replicas < 1 {
+		return fmt.Errorf("%w: replicas must be at least 1", ErrInvalidMinMaxReplicas)
+	} else if m.Spec.MaxReplicas != nil && *m.Spec.MaxReplicas < m.Spec.Replicas {
+		return fmt.Errorf("%w: max replicas must be greater than or equal to replicas", ErrInvalidMinMaxReplicas)
+	}
+
+	return nil
 }
 
 // +kubebuilder:object:root=true
