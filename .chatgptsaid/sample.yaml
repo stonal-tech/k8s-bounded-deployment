@@ -1,0 +1,17 @@
+apiVersion: stonal.io/v1
+kind: MinDeployment
+metadata:
+  name: my-min-deployment
+spec:
+  replicas: 3
+  maxReplicas: 5  # Optional
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+        - name: my-container
+          image: nginx:latest
+          ports:
+            - containerPort: 80

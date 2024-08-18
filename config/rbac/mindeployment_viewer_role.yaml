@@ -1,0 +1,23 @@
+# permissions for end users to view mindeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: tool-k8s-crd-mindeployment
+    app.kubernetes.io/managed-by: kustomize
+  name: mindeployment-viewer-role
+rules:
+- apiGroups:
+  - deploy.stonal.io
+  resources:
+  - mindeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - deploy.stonal.io
+  resources:
+  - mindeployments/status
+  verbs:
+  - get
