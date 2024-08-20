@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -60,14 +61,50 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Fetch the MinDeployment instance
 	minDeployment := &v1.MinDeployment{} // Using the correct path here
-	err := r.Get(ctx, req.NamespacedName, minDeployment)
-	if err != nil {
-		if errors.IsNotFound(err) {
+	errGet := r.Get(ctx, req.NamespacedName, minDeployment)
+	if errGet != nil {
+		if errors.IsNotFound(errGet) {
 			log.Info("MinDeployment not found. Ignoring since it must have been deleted")
 			return ctrl.Result{}, nil
 		}
-		r.Log.Error("Failed to get MinDeployment", "error", err)
-		return ctrl.Result{}, err
+		r.Log.Error("Failed to get MinDeployment", "error", errGet)
+		return ctrl.Result{}, errGet
+	}
+
+	// Fetch the referenced Deployment
+	if minDeployment.Spec.SourceDeploymentName != "" {
+		deployment := &appsv1.Deployment{}
+
+		errGet = r.Get(
+			ctx,
+			client.ObjectKey{
+				Name:      minDeployment.Spec.SourceDeploymentName,
+				Namespace: req.Namespace,
+			},
+			deployment,
+		)
+
+		if errGet != nil {
+			log.Error(
+				"Failed to get Deployment",
+				"sourceDeploymentName", minDeployment.Spec.SourceDeploymentName,
+				"err", errGet,
+			)
+			return ctrl.Result{}, errGet
+		}
+
+		// Copy the template from the Deployment
+		minDeployment.Spec.Template = deployment.Spec.Template
+
+		// Scale down the Deployment to disable it
+		if *deployment.Spec.Replicas != 0 {
+			deployment.Spec.Replicas = new(int32) // Set to 0 replicas
+			r.Log.Info("Disabling source Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName)
+			if err := r.Update(ctx, deployment); err != nil {
+				r.Log.Error("Failed to scale down Deployment", "err", err)
+				return ctrl.Result{}, err
+			}
+		}
 	}
 
 	// Check if the MinDeployment is valid
@@ -78,15 +115,15 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Get the current list of pods
 	podList := &corev1.PodList{}
-	err = r.List(
+	errGet = r.List(
 		ctx,
 		podList,
 		client.InNamespace(req.Namespace),
 		client.MatchingLabels(minDeployment.Spec.Template.Labels),
 	)
-	if err != nil {
-		log.Error("Failed to list pods", "err", err)
-		return ctrl.Result{}, err
+	if errGet != nil {
+		log.Error("Failed to list pods", "err", errGet)
+		return ctrl.Result{}, errGet
 	}
 
 	podCount := len(podList.Items)

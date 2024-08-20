@@ -46,6 +46,9 @@ spec:
                 description: Minimum number of replicas to for the deployment
                 minimum: 1
                 type: integer
+              sourceDeploymentName:
+                description: Name of the source deployment to copy the template from
+                type: string
               template:
                 description: Template for the pods to start
                 x-kubernetes-preserve-unknown-fields: true
@@ -53,6 +56,10 @@ spec:
           status:
             description: MinDeploymentStatus defines the observed state of MinDeployment
             properties:
+              nbPodsCreated:
+                type: integer
+              nbPodsDeleted:
+                type: integer
               replicas:
                 description: Current number of replicas
                 type: integer

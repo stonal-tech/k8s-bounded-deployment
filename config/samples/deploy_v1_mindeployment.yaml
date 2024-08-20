@@ -1,10 +1,7 @@
 apiVersion: deploy.stonal.io/v1
 kind: MinDeployment
 metadata:
-  labels:
-    app.kubernetes.io/name: tool-k8s-crd-mindeployment
-    app.kubernetes.io/managed-by: kustomize
-  name: mindeployment-sample
+  name: nginx-mindeployment
 spec:
   replicas: 3
   maxReplicas: 5  # Optional
@@ -19,3 +16,36 @@ spec:
           ports:
             - containerPort: 80
 
+---
+# Standard nginx deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-app2
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app2
+  template:
+    metadata:
+      labels:
+        app: my-app2
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+---
+# MinDeployment based on the standard nginx deployment
+apiVersion: deploy.stonal.io/v1
+kind: MinDeployment
+metadata:
+  name: nginx-deployment-mindeployment
+spec:
+  sourceDeploymentName: nginx-deployment
+  replicas: 2
+  maxReplicas: 10

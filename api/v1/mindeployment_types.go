@@ -40,7 +40,12 @@ type MinDeploymentSpec struct {
 	// Template for the pods to start
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:Optional
 	Template corev1.PodTemplateSpec `json:"template,omitempty"`
+
+	// Name of the source deployment to copy the template from
+	// +kubebuilder:validation:Optional
+	SourceDeploymentName string `json:"sourceDeploymentName,omitempty"`
 }
 
 // MinDeploymentStatus defines the observed state of MinDeployment
@@ -65,12 +70,16 @@ type MinDeployment struct {
 
 var ErrInvalidMinMaxReplicas = errors.New("Invalid min/max replicas")
 
+var ErrInvalidTemplate = errors.New("Invalid template")
+
 // Check validates the MinDeployment.
 func (m *MinDeployment) Check() error {
 	if m.Spec.Replicas < 1 {
 		return fmt.Errorf("%w: replicas must be at least 1", ErrInvalidMinMaxReplicas)
 	} else if m.Spec.MaxReplicas != nil && *m.Spec.MaxReplicas < m.Spec.Replicas {
 		return fmt.Errorf("%w: max replicas must be greater than or equal to replicas", ErrInvalidMinMaxReplicas)
+	} else if m.Spec.Template.Spec.Containers == nil {
+		return errors.New("%w: template must have at least one container")
 	}
 
 	return nil
