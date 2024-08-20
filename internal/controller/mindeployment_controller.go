@@ -99,7 +99,7 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		// Scale down the Deployment to disable it
 		if *deployment.Spec.Replicas != 0 {
 			deployment.Spec.Replicas = new(int32) // Set to 0 replicas
-			r.Log.Info("Disabling source Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName)
+			log.Info("Disabling source Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName)
 			if err := r.Update(ctx, deployment); err != nil {
 				r.Log.Error("Failed to scale down Deployment", "err", err)
 				return ctrl.Result{}, err
