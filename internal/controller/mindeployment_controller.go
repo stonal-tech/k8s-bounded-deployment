@@ -11,9 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	deploymentv1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
 	v1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
@@ -33,6 +36,13 @@ type MinDeploymentReconciler struct {
 	client.Client
 	Log    *slog.Logger
 	Scheme *runtime.Scheme
+
+	deploymentToMinDeployment map[types.NamespacedName]types.NamespacedName
+}
+
+func (r *MinDeploymentReconciler) init() {
+	r.Log = slog.Default()
+	r.deploymentToMinDeployment = make(map[types.NamespacedName]types.NamespacedName)
 }
 
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments,verbs=get;list;watch;create;update;patch;delete
@@ -74,6 +84,8 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", errGet)
 			return ctrl.Result{}, errGet
 		}
+
+		r.deploymentToMinDeployment[types.NamespacedName{Namespace: req.Namespace, Name: deployment.Name}] = req.NamespacedName
 
 		// Copy the template from the Deployment and generate a new hash
 		minDeployment.Spec.Template = deployment.Spec.Template
@@ -124,8 +136,6 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				return ctrl.Result{}, err
 			}
 			minDeployment.Status.NbPodsDeleted++
-			minDeployment.Status.NbPodsOutdated++
-			podCount--
 		}
 	}
 
@@ -177,11 +187,39 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
+func (r *MinDeploymentReconciler) findDeployment(ctx context.Context, deployment client.Object) []reconcile.Request {
+	deploymentsList := &appsv1.DeploymentList{}
+	listOps := &client.ListOptions{
+		// FieldSelector: fields.OneTermEqualSelector("configMapField", deployment.GetName()),
+		Namespace: deployment.GetNamespace(),
+	}
+	err := r.List(ctx, deploymentsList, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, 0, len(deploymentsList.Items))
+	for _, item := range deploymentsList.Items {
+		srcNsName := types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}
+		if targetNsName, ok := r.deploymentToMinDeployment[srcNsName]; ok {
+			requests = append(
+				requests,
+				reconcile.Request{NamespacedName: targetNsName},
+			)
+		}
+	}
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *MinDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Log = slog.Default()
+	r.init()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deploymentv1.MinDeployment{}).
 		Owns(&corev1.Pod{}).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(r.findDeployment),
+		).
 		Complete(r)
 }
