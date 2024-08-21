@@ -60,6 +60,8 @@ spec:
                 type: integer
               nbPodsDeleted:
                 type: integer
+              nbPodsOutdated:
+                type: integer
               replicas:
                 description: Current number of replicas
                 type: integer

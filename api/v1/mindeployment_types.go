@@ -51,9 +51,10 @@ type MinDeploymentSpec struct {
 // MinDeploymentStatus defines the observed state of MinDeployment
 type MinDeploymentStatus struct {
 	// Current number of replicas
-	Replicas      int `json:"replicas,omitempty"`
-	NbPodsCreated int `json:"nbPodsCreated,omitempty"`
-	NbPodsDeleted int `json:"nbPodsDeleted,omitempty"`
+	Replicas       int `json:"replicas,omitempty"`
+	NbPodsCreated  int `json:"nbPodsCreated,omitempty"`
+	NbPodsDeleted  int `json:"nbPodsDeleted,omitempty"`
+	NbPodsOutdated int `json:"nbPodsOutdated,omitempty"`
 }
 
 // +kubebuilder:object:root=true
