@@ -39,12 +39,15 @@ spec:
           spec:
             description: MinDeploymentSpec defines the desired state of MinDeployment
             properties:
+              margin:
+                description: Margin between min & max
+                type: integer
               maxReplicas:
                 description: Maximum number of replicas to for the deployment (optional)
                 type: integer
               replicas:
                 description: Minimum number of replicas to for the deployment
-                minimum: 1
+                minimum: 0
                 type: integer
               sourceDeploymentName:
                 description: Name of the source deployment to copy the template from

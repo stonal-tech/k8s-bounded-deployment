@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"log/slog"
+	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,6 +39,7 @@ type MinDeploymentReconciler struct {
 	Scheme *runtime.Scheme
 
 	deploymentToMinDeployment map[types.NamespacedName]types.NamespacedName
+	lock                      sync.Mutex
 }
 
 func (r *MinDeploymentReconciler) init() {
@@ -50,6 +52,8 @@ func (r *MinDeploymentReconciler) init() {
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/finalizers,verbs=update
 
 func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling MinDeployment")
 
@@ -121,25 +125,41 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, errGet
 	}
 
-	podCount := len(podList.Items)
+	// Remove the pods that have been marked for deletion
+	activePods := make([]corev1.Pod, 0, len(podList.Items))
+	for _, pod := range podList.Items {
+		if pod.DeletionTimestamp == nil {
+			activePods = append(activePods, pod)
+		}
+	}
+
+	podCount := len(activePods)
 	log = log.With("podCount", podCount)
 	log.Info("Counted pod")
 
 	minDeployment.Status.Replicas = podCount
 
 	// Delete pods that do not match the current template hash
-	for _, pod := range podList.Items {
+	for _, pod := range activePods {
 		if pod.Annotations[PodTemplateHashAnnotation] != templateHash {
 			log.Info("Deleting pod due to hash mismatch", "pod", pod.Name, "podHash", pod.Annotations[PodTemplateHashAnnotation])
 			if err := r.Delete(ctx, &pod); err != nil {
-				r.Log.Error("Failed to delete pod", "err", err)
+				log.Error("Failed to delete pod", "err", err)
 				return ctrl.Result{}, err
 			}
 			minDeployment.Status.NbPodsDeleted++
 		}
 	}
 
-	if podCount < minDeployment.Spec.Replicas {
+	minReplicas := minDeployment.Spec.Replicas
+	maxReplicas := minDeployment.Spec.MaxReplicas
+
+	if maxReplicas == nil && minDeployment.Spec.MarginReplicas != nil {
+		maxReplicas = new(int)
+		*maxReplicas = minReplicas + *minDeployment.Spec.MarginReplicas
+	}
+
+	if podCount < minReplicas {
 		log.Info("Creating pod", "minReplicas", minDeployment.Spec.Replicas, "currentReplicas", podCount)
 		// Create a new Pod
 		newPod := &corev1.Pod{
@@ -165,12 +185,12 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 		minDeployment.Status.NbPodsCreated++
-	} else if minDeployment.Spec.MaxReplicas != nil && podCount > *minDeployment.Spec.MaxReplicas {
-		log.Info("Deleting a pod", "maxReplicas", *minDeployment.Spec.MaxReplicas)
+	} else if maxReplicas != nil && podCount > *maxReplicas {
+		log.Info("Deleting a pod", "maxReplicas", *maxReplicas)
 		// Delete an existing Pod
-		podToDelete := podList.Items[0]
-		if err := r.Delete(ctx, &podToDelete); err != nil {
-			r.Log.Error("Failed to delete pod", "err", err)
+		podToDelete := &activePods[0]
+		if err := r.Delete(ctx, podToDelete); err != nil {
+			log.Error("Failed to delete pod", "err", err)
 			return ctrl.Result{}, err
 		}
 		minDeployment.Status.NbPodsDeleted++

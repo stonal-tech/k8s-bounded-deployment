@@ -91,6 +91,11 @@ func (in *MinDeploymentSpec) DeepCopyInto(out *MinDeploymentSpec) {
 		*out = new(int)
 		**out = **in
 	}
+	if in.MarginReplicas != nil {
+		in, out := &in.MarginReplicas, &out.MarginReplicas
+		*out = new(int)
+		**out = **in
+	}
 	in.Template.DeepCopyInto(&out.Template)
 }
 
