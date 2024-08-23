@@ -1,66 +1,64 @@
-/*
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
-
-	"k8s.io/apimachinery/pkg/api/errors"
+	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	deploymentv1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
 	v1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
 )
+
+const PodTemplateHashAnnotation = "deploy.stonal.io/template-hash"
+
+// generatePodTemplateHash generates a hash for a given pod template spec.
+func generatePodTemplateHash(template corev1.PodTemplateSpec) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(template.Spec.String()))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
 
 // MinDeploymentReconciler reconciles a MinDeployment object
 type MinDeploymentReconciler struct {
 	client.Client
 	Log    *slog.Logger
 	Scheme *runtime.Scheme
+
+	deploymentToMinDeployment map[types.NamespacedName]types.NamespacedName
+	lock                      sync.Mutex
+}
+
+func (r *MinDeploymentReconciler) init() {
+	r.Log = slog.Default()
+	r.deploymentToMinDeployment = make(map[types.NamespacedName]types.NamespacedName)
 }
 
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the MinDeployment object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling MinDeployment")
 
 	// Fetch the MinDeployment instance
-	minDeployment := &v1.MinDeployment{} // Using the correct path here
+	minDeployment := &v1.MinDeployment{}
 	errGet := r.Get(ctx, req.NamespacedName, minDeployment)
 	if errGet != nil {
 		if errors.IsNotFound(errGet) {
@@ -71,10 +69,13 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, errGet
 	}
 
-	// Fetch the referenced Deployment
+	// Generate a hash for the current pod template
+	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
+	log = log.With("templateHash", templateHash)
+
+	// Fetch the referenced Deployment if needed
 	if minDeployment.Spec.SourceDeploymentName != "" {
 		deployment := &appsv1.Deployment{}
-
 		errGet = r.Get(
 			ctx,
 			client.ObjectKey{
@@ -83,22 +84,20 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			},
 			deployment,
 		)
-
 		if errGet != nil {
-			log.Error(
-				"Failed to get Deployment",
-				"sourceDeploymentName", minDeployment.Spec.SourceDeploymentName,
-				"err", errGet,
-			)
+			log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", errGet)
 			return ctrl.Result{}, errGet
 		}
 
-		// Copy the template from the Deployment
+		r.deploymentToMinDeployment[types.NamespacedName{Namespace: req.Namespace, Name: deployment.Name}] = req.NamespacedName
+
+		// Copy the template from the Deployment and generate a new hash
 		minDeployment.Spec.Template = deployment.Spec.Template
+		templateHash = generatePodTemplateHash(minDeployment.Spec.Template)
 
 		// Scale down the Deployment to disable it
 		if *deployment.Spec.Replicas != 0 {
-			deployment.Spec.Replicas = new(int32) // Set to 0 replicas
+			deployment.Spec.Replicas = new(int32)
 			log.Info("Disabling source Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName)
 			if err := r.Update(ctx, deployment); err != nil {
 				r.Log.Error("Failed to scale down Deployment", "err", err)
@@ -126,13 +125,41 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, errGet
 	}
 
-	podCount := len(podList.Items)
+	// Remove the pods that have been marked for deletion
+	activePods := make([]corev1.Pod, 0, len(podList.Items))
+	for _, pod := range podList.Items {
+		if pod.DeletionTimestamp == nil {
+			activePods = append(activePods, pod)
+		}
+	}
+
+	podCount := len(activePods)
 	log = log.With("podCount", podCount)
 	log.Info("Counted pod")
 
 	minDeployment.Status.Replicas = podCount
 
-	if podCount < minDeployment.Spec.Replicas {
+	// Delete pods that do not match the current template hash
+	for _, pod := range activePods {
+		if pod.Annotations[PodTemplateHashAnnotation] != templateHash {
+			log.Info("Deleting pod due to hash mismatch", "pod", pod.Name, "podHash", pod.Annotations[PodTemplateHashAnnotation])
+			if err := r.Delete(ctx, &pod); err != nil {
+				log.Error("Failed to delete pod", "err", err)
+				return ctrl.Result{}, err
+			}
+			minDeployment.Status.NbPodsDeleted++
+		}
+	}
+
+	minReplicas := minDeployment.Spec.Replicas
+	maxReplicas := minDeployment.Spec.MaxReplicas
+
+	if maxReplicas == nil && minDeployment.Spec.MarginReplicas != nil {
+		maxReplicas = new(int)
+		*maxReplicas = minReplicas + *minDeployment.Spec.MarginReplicas
+	}
+
+	if podCount < minReplicas {
 		log.Info("Creating pod", "minReplicas", minDeployment.Spec.Replicas, "currentReplicas", podCount)
 		// Create a new Pod
 		newPod := &corev1.Pod{
@@ -140,6 +167,9 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				GenerateName: minDeployment.Name + "-pod-",
 				Namespace:    req.Namespace,
 				Labels:       minDeployment.Spec.Template.Labels,
+				Annotations: map[string]string{
+					PodTemplateHashAnnotation: templateHash,
+				},
 			},
 			Spec: minDeployment.Spec.Template.Spec,
 		}
@@ -155,12 +185,12 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 		minDeployment.Status.NbPodsCreated++
-	} else if minDeployment.Spec.MaxReplicas != nil && podCount > *minDeployment.Spec.MaxReplicas {
-		log.Info("Deleting a pod", "maxReplicas", *minDeployment.Spec.MaxReplicas)
+	} else if maxReplicas != nil && podCount > *maxReplicas {
+		log.Info("Deleting a pod", "maxReplicas", *maxReplicas)
 		// Delete an existing Pod
-		podToDelete := podList.Items[0]
-		if err := r.Delete(ctx, &podToDelete); err != nil {
-			r.Log.Error("Failed to delete pod", "err", err)
+		podToDelete := &activePods[0]
+		if err := r.Delete(ctx, podToDelete); err != nil {
+			log.Error("Failed to delete pod", "err", err)
 			return ctrl.Result{}, err
 		}
 		minDeployment.Status.NbPodsDeleted++
@@ -177,11 +207,39 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
+func (r *MinDeploymentReconciler) findDeployment(ctx context.Context, deployment client.Object) []reconcile.Request {
+	deploymentsList := &appsv1.DeploymentList{}
+	listOps := &client.ListOptions{
+		// FieldSelector: fields.OneTermEqualSelector("configMapField", deployment.GetName()),
+		Namespace: deployment.GetNamespace(),
+	}
+	err := r.List(ctx, deploymentsList, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, 0, len(deploymentsList.Items))
+	for _, item := range deploymentsList.Items {
+		srcNsName := types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}
+		if targetNsName, ok := r.deploymentToMinDeployment[srcNsName]; ok {
+			requests = append(
+				requests,
+				reconcile.Request{NamespacedName: targetNsName},
+			)
+		}
+	}
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *MinDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.Log = slog.Default()
+	r.init()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deploymentv1.MinDeployment{}).
 		Owns(&corev1.Pod{}).
+		Watches(
+			&appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(r.findDeployment),
+		).
 		Complete(r)
 }

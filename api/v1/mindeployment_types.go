@@ -30,12 +30,16 @@ import (
 // MinDeploymentSpec defines the desired state of MinDeployment
 type MinDeploymentSpec struct {
 	// Minimum number of replicas to for the deployment
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int `json:"replicas,omitempty"`
 
 	// Maximum number of replicas to for the deployment (optional)
 	// +kubebuilder:validation:Optional
 	MaxReplicas *int `json:"maxReplicas,omitempty"`
+
+	// Margin between min & max
+	// +kubebuilder:validation:Optional
+	MarginReplicas *int `json:"margin,omitempty"`
 
 	// Template for the pods to start
 	// +kubebuilder:pruning:PreserveUnknownFields
@@ -51,9 +55,10 @@ type MinDeploymentSpec struct {
 // MinDeploymentStatus defines the observed state of MinDeployment
 type MinDeploymentStatus struct {
 	// Current number of replicas
-	Replicas      int `json:"replicas,omitempty"`
-	NbPodsCreated int `json:"nbPodsCreated,omitempty"`
-	NbPodsDeleted int `json:"nbPodsDeleted,omitempty"`
+	Replicas       int `json:"replicas,omitempty"`
+	NbPodsCreated  int `json:"nbPodsCreated,omitempty"`
+	NbPodsDeleted  int `json:"nbPodsDeleted,omitempty"`
+	NbPodsOutdated int `json:"nbPodsOutdated,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -74,8 +79,10 @@ var ErrInvalidTemplate = errors.New("Invalid template")
 
 // Check validates the MinDeployment.
 func (m *MinDeployment) Check() error {
-	if m.Spec.Replicas < 1 {
-		return fmt.Errorf("%w: replicas must be at least 1", ErrInvalidMinMaxReplicas)
+	if m.Spec.Replicas < 0 {
+		return fmt.Errorf("%w: replicas must be at least 0", ErrInvalidMinMaxReplicas)
+	} else if m.Spec.MarginReplicas != nil && *m.Spec.MarginReplicas < 0 {
+		return fmt.Errorf("%w: margin must be at least 0", ErrInvalidMinMaxReplicas)
 	} else if m.Spec.MaxReplicas != nil && *m.Spec.MaxReplicas < m.Spec.Replicas {
 		return fmt.Errorf("%w: max replicas must be greater than or equal to replicas", ErrInvalidMinMaxReplicas)
 	} else if m.Spec.Template.Spec.Containers == nil {
