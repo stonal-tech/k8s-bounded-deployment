@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"log/slog"
-	"sync"
+	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +39,6 @@ type MinDeploymentReconciler struct {
 	Scheme *runtime.Scheme
 
 	deploymentToMinDeployment map[types.NamespacedName]types.NamespacedName
-	lock                      sync.Mutex
 }
 
 func (r *MinDeploymentReconciler) init() {
@@ -52,8 +51,6 @@ func (r *MinDeploymentReconciler) init() {
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/finalizers,verbs=update
 
 func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling MinDeployment")
 
@@ -132,6 +129,11 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			activePods = append(activePods, pod)
 		}
 	}
+
+	// The pods are sorted by creation timestamp (oldest are kept alive)
+	sort.Slice(activePods, func(i, j int) bool {
+		return activePods[j].CreationTimestamp.Before(&activePods[i].CreationTimestamp)
+	})
 
 	podCount := len(activePods)
 	log = log.With("podCount", podCount)
