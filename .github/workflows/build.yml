@@ -22,8 +22,8 @@ jobs:
       with:
           # https://github.com/golangci/golangci-lint/releases
           version: v1.60.3
-          args: -v --timeout=20m
-          skip-cache: true
+          # args: -v --timeout=20m
+          # skip-cache: true
 
     - name: Run golangci-lint
       run: golangci-lint run
