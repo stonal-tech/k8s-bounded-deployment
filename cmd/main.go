@@ -35,8 +35,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	deploymentv1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
-	"github.com/stonal-tech/tool-k8s-crd-mindeployment/internal/controller"
+	deploymentv1 "github.com/stonal-tech/k8s-mindeployment/api/v1"
+	"github.com/stonal-tech/k8s-mindeployment/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

@@ -1,4 +1,4 @@
-module github.com/stonal-tech/tool-k8s-crd-mindeployment
+module github.com/stonal-tech/k8s-mindeployment
 
 go 1.22.0
 

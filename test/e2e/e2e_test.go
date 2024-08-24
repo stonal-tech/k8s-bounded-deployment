@@ -24,10 +24,10 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/stonal-tech/tool-k8s-crd-mindeployment/test/utils"
+	"github.com/stonal-tech/k8s-mindeployment/test/utils"
 )
 
-const namespace = "tool-k8s-crd-mindeployment-system"
+const namespace = "k8s-mindeployment-system"
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
@@ -60,7 +60,7 @@ var _ = Describe("controller", Ordered, func() {
 			var err error
 
 			// projectimage stores the name of the image used in the example
-			var projectimage = "example.com/tool-k8s-crd-mindeployment:v0.0.1"
+			var projectimage = "example.com/k8s-mindeployment:v0.0.1"
 
 			By("building the manager(Operator) image")
 			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))

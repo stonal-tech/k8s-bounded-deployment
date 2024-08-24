@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+
+# This is the main CI we call
+jobs:
+  main:
+    name: Main
+    uses: stonal-tech/workflow-go/.github/workflows/ci.yml@v0.29.0
+    secrets: inherit
+  ci:
+    needs: main
+    runs-on: stonal-ubuntu-22.04
+    steps:
+      - uses: stonal-tech/action-ok@v0.0.0
