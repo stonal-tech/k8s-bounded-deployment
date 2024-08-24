@@ -1,23 +1,16 @@
-name: CI
+name: build
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - v*
-  pull_request:
 
-# This is the main CI we call
 jobs:
   main:
-    name: Main
-    uses: stonal-tech/workflow-go/.github/workflows/ci.yml@v0.30.0
+    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.10.0
     secrets: inherit
     with:
-      skip-lint-rules-override: true
+      k8s-component: "k8s-mindeployment" # Declare it, only if you want to deploy it
   ci:
     needs: main
     runs-on: stonal-ubuntu-22.04
     steps:
-      - uses: stonal-tech/action-ok@v0.0.0
+      - uses: stonal-tech/action-ok@v0.1.0

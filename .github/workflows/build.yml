@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+jobs:
+  lint-and-build:
+    runs-on: stonal-ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4.1.7
+
+    - name: Set up Go
+      uses: actions/setup-go@v5.0.2
+      with:
+        go-version: '1.23'
+
+    - name: Linting
+      uses: golangci/golangci-lint-action@v6.1.0
+      with:
+          # https://github.com/golangci/golangci-lint/releases
+          version: v1.60.3
+          args: -v --timeout=20m
+          skip-cache: true
+
+    - name: Run golangci-lint
+      run: golangci-lint run
+
+    - name: Build project
+      run: make build
