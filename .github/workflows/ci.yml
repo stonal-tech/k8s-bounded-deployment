@@ -12,8 +12,10 @@ on:
 jobs:
   main:
     name: Main
-    uses: stonal-tech/workflow-go/.github/workflows/ci.yml@v0.29.0
+    uses: stonal-tech/workflow-go/.github/workflows/ci.yml@v0.30.0
     secrets: inherit
+    with:
+      skip-lint-rules-override: true
   ci:
     needs: main
     runs-on: stonal-ubuntu-22.04
