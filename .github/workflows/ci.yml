@@ -1,0 +1,16 @@
+name: Build container
+
+on:
+  push:
+
+jobs:
+  main:
+    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.10.0
+    secrets: inherit
+    with:
+      k8s-component: "k8s-mindeployment" # Declare it, only if you want to deploy it
+  ci:
+    needs: main
+    runs-on: stonal-ubuntu-22.04
+    steps:
+      - uses: stonal-tech/action-ok@v0.1.0

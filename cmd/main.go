@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"net/http"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -35,8 +36,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	deploymentv1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
-	"github.com/stonal-tech/tool-k8s-crd-mindeployment/internal/controller"
+	deploymentv1 "github.com/stonal-tech/k8s-mindeployment/api/v1"
+	"github.com/stonal-tech/k8s-mindeployment/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -161,6 +162,23 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+
+	// Add custom health check handler
+	http.HandleFunc("/mgmt/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("OK"))
+		if err != nil {
+			setupLog.Error(err, "failed to write response")
+		}
+	})
+
+	// Start the HTTP server for the custom health check
+	go func() {
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			setupLog.Error(err, "unable to start health check server")
+			os.Exit(1)
+		}
+	}()
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

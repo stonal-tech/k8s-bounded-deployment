@@ -33,7 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	deploymentv1 "github.com/stonal-tech/tool-k8s-crd-mindeployment/api/v1"
+	deploymentv1 "github.com/stonal-tech/k8s-mindeployment/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
