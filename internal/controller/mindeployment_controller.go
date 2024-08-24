@@ -52,14 +52,14 @@ func (r *MinDeploymentReconciler) init() {
 
 func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
-	log.Info("Reconciling MinDeployment")
+	log.Debug("Reconciling MinDeployment")
 
-	minDeployment, err := r.getMinDeployment(ctx, req.NamespacedName)
+	minDeployment, err := r.getMinDeployment(ctx, req.NamespacedName, log)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	templateHash, err := r.handleSourceDeployment(ctx, minDeployment, req.Namespace)
+	templateHash, err := r.handleSourceDeployment(ctx, minDeployment, req.Namespace, log)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -69,16 +69,16 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	activePods, err := r.getActivePods(ctx, minDeployment, req.Namespace)
+	activePods, err := r.getActivePods(ctx, minDeployment, req.Namespace, log)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.reconcilePods(ctx, minDeployment, activePods, templateHash); err != nil {
+	if err := r.reconcilePods(ctx, minDeployment, activePods, templateHash, log); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updateStatus(ctx, minDeployment); err != nil {
+	if err := r.updateStatus(ctx, minDeployment, log); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -88,14 +88,15 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *MinDeploymentReconciler) getMinDeployment(
 	ctx context.Context,
 	namespacedName types.NamespacedName,
+	log *slog.Logger,
 ) (*v1.MinDeployment, error) {
 	minDeployment := &v1.MinDeployment{}
 	if err := r.Get(ctx, namespacedName, minDeployment); err != nil {
 		if errors.IsNotFound(err) {
-			r.Log.Info("MinDeployment not found. Ignoring since it must have been deleted")
+			log.Info("MinDeployment not found. Ignoring since it must have been deleted")
 			return nil, nil
 		}
-		r.Log.Error("Failed to get MinDeployment", "error", err)
+		log.Error("Failed to get MinDeployment", "error", err)
 		return nil, err
 	}
 	return minDeployment, nil
@@ -105,6 +106,7 @@ func (r *MinDeploymentReconciler) handleSourceDeployment(
 	ctx context.Context,
 	minDeployment *v1.MinDeployment,
 	namespace string,
+	log *slog.Logger,
 ) (string, error) {
 	if minDeployment.Spec.SourceDeploymentName == "" {
 		return generatePodTemplateHash(minDeployment.Spec.Template), nil
@@ -115,7 +117,7 @@ func (r *MinDeploymentReconciler) handleSourceDeployment(
 		ctx,
 		client.ObjectKey{Name: minDeployment.Spec.SourceDeploymentName, Namespace: namespace},
 		deployment); err != nil {
-		r.Log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", err)
+		log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", err)
 		return "", err
 	}
 
@@ -127,19 +129,19 @@ func (r *MinDeploymentReconciler) handleSourceDeployment(
 	minDeployment.Spec.Template = deployment.Spec.Template
 	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
 
-	if err := r.scaleDownDeployment(ctx, deployment); err != nil {
+	if err := r.scaleDownDeployment(ctx, deployment, log); err != nil {
 		return "", err
 	}
 
 	return templateHash, nil
 }
 
-func (r *MinDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+func (r *MinDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment, log *slog.Logger) error {
 	if *deployment.Spec.Replicas != 0 {
 		deployment.Spec.Replicas = new(int32)
-		r.Log.Info("Disabling source Deployment", "sourceDeploymentName", deployment.Name)
+		log.Info("Disabling source Deployment", "sourceDeploymentName", deployment.Name)
 		if err := r.Update(ctx, deployment); err != nil {
-			r.Log.Error("Failed to scale down Deployment", "err", err)
+			log.Error("Failed to scale down Deployment", "err", err)
 			return err
 		}
 	}
@@ -150,6 +152,7 @@ func (r *MinDeploymentReconciler) getActivePods(
 	ctx context.Context,
 	minDeployment *v1.MinDeployment,
 	namespace string,
+	log *slog.Logger,
 ) ([]corev1.Pod, error) {
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
@@ -157,7 +160,7 @@ func (r *MinDeploymentReconciler) getActivePods(
 		client.MatchingLabels(minDeployment.Spec.Template.Labels),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
-		r.Log.Error("Failed to list pods", "err", err)
+		log.Error("Failed to list pods", "err", err)
 		return nil, err
 	}
 
@@ -180,8 +183,9 @@ func (r *MinDeploymentReconciler) reconcilePods(
 	minDeployment *v1.MinDeployment,
 	activePods []corev1.Pod,
 	templateHash string,
+	log *slog.Logger,
 ) error {
-	if err := r.deleteMismatchedPods(ctx, minDeployment, activePods, templateHash); err != nil {
+	if err := r.deleteMismatchedPods(ctx, minDeployment, activePods, templateHash, log); err != nil {
 		return err
 	}
 
@@ -191,12 +195,12 @@ func (r *MinDeploymentReconciler) reconcilePods(
 	maxReplicas := r.calculateMaxReplicas(minDeployment)
 
 	if podCount < minDeployment.Spec.Replicas {
-		return r.createPod(ctx, minDeployment, templateHash)
+		return r.createPod(ctx, minDeployment, templateHash, log)
 	} else if maxReplicas != nil && podCount > *maxReplicas {
-		return r.deletePod(ctx, minDeployment, &activePods[0])
+		return r.deletePod(ctx, minDeployment, &activePods[0], log)
 	}
 
-	r.Log.Debug("No action required")
+	log.Debug("No action required")
 	return nil
 }
 
@@ -205,16 +209,17 @@ func (r *MinDeploymentReconciler) deleteMismatchedPods(
 	minDeployment *v1.MinDeployment,
 	activePods []corev1.Pod,
 	templateHash string,
+	log *slog.Logger,
 ) error {
 	for _, pod := range activePods {
 		if pod.Annotations[PodTemplateHashAnnotation] != templateHash {
-			r.Log.Info(
+			log.Info(
 				"Deleting pod due to hash mismatch",
 				"pod", pod.Name,
 				"podHash", pod.Annotations[PodTemplateHashAnnotation],
 			)
 			if err := r.Delete(ctx, &pod); err != nil {
-				r.Log.Error("Failed to delete pod", "err", err)
+				log.Error("Failed to delete pod", "err", err)
 				return err
 			}
 			minDeployment.Status.NbPodsDeleted++
@@ -238,8 +243,9 @@ func (r *MinDeploymentReconciler) createPod(
 	ctx context.Context,
 	minDeployment *v1.MinDeployment,
 	templateHash string,
+	log *slog.Logger,
 ) error {
-	r.Log.Info(
+	log.Info(
 		"Creating pod",
 		"minReplicas", minDeployment.Spec.Replicas,
 		"currentReplicas", minDeployment.Status.Replicas,
@@ -257,12 +263,12 @@ func (r *MinDeploymentReconciler) createPod(
 	}
 
 	if err := controllerutil.SetControllerReference(minDeployment, newPod, r.Scheme); err != nil {
-		r.Log.Error("Failed to set controller reference", "err", err)
+		log.Error("Failed to set controller reference", "err", err)
 		return err
 	}
 
 	if err := r.Create(ctx, newPod); err != nil {
-		r.Log.Error("Failed to create new pod", "err", err)
+		log.Error("Failed to create new pod", "err", err)
 		return err
 	}
 	minDeployment.Status.NbPodsCreated++
@@ -273,19 +279,20 @@ func (r *MinDeploymentReconciler) deletePod(
 	ctx context.Context,
 	minDeployment *v1.MinDeployment,
 	pod *corev1.Pod,
+	log *slog.Logger,
 ) error {
-	r.Log.Info("Deleting a pod", "maxReplicas", *r.calculateMaxReplicas(minDeployment))
+	log.Info("Deleting a pod", "maxReplicas", *r.calculateMaxReplicas(minDeployment))
 	if err := r.Delete(ctx, pod); err != nil {
-		r.Log.Error("Failed to delete pod", "err", err)
+		log.Error("Failed to delete pod", "err", err)
 		return err
 	}
 	minDeployment.Status.NbPodsDeleted++
 	return nil
 }
 
-func (r *MinDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.MinDeployment) error {
+func (r *MinDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.MinDeployment, log *slog.Logger) error {
 	if err := r.Status().Update(ctx, minDeployment); err != nil {
-		r.Log.Error("Failed to update MinDeployment status", "err", err)
+		log.Error("Failed to update MinDeployment status", "err", err)
 		return err
 	}
 	return nil
