@@ -13,6 +13,10 @@ jobs:
       with:
         go-version: '1.23'
 
+    - name: Installing tools
+      run: |
+        apt-get update && apt-get install -y make
+
     - name: Linting
       uses: golangci/golangci-lint-action@v6.1.0
       with:
