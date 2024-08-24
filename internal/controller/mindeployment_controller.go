@@ -54,75 +54,113 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
 	log.Info("Reconciling MinDeployment")
 
-	// Fetch the MinDeployment instance
-	minDeployment := &v1.MinDeployment{}
-	errGet := r.Get(ctx, req.NamespacedName, minDeployment)
-	if errGet != nil {
-		if errors.IsNotFound(errGet) {
-			log.Info("MinDeployment not found. Ignoring since it must have been deleted")
-			return ctrl.Result{}, nil
-		}
-		r.Log.Error("Failed to get MinDeployment", "error", errGet)
-		return ctrl.Result{}, errGet
+	minDeployment, err := r.getMinDeployment(ctx, req.NamespacedName)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	// Generate a hash for the current pod template
-	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
-	log = log.With("templateHash", templateHash)
-
-	// Fetch the referenced Deployment if needed
-	if minDeployment.Spec.SourceDeploymentName != "" {
-		deployment := &appsv1.Deployment{}
-		errGet = r.Get(
-			ctx,
-			client.ObjectKey{
-				Name:      minDeployment.Spec.SourceDeploymentName,
-				Namespace: req.Namespace,
-			},
-			deployment,
-		)
-		if errGet != nil {
-			log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", errGet)
-			return ctrl.Result{}, errGet
-		}
-
-		r.deploymentToMinDeployment[types.NamespacedName{Namespace: req.Namespace, Name: deployment.Name}] = req.NamespacedName
-
-		// Copy the template from the Deployment and generate a new hash
-		minDeployment.Spec.Template = deployment.Spec.Template
-		templateHash = generatePodTemplateHash(minDeployment.Spec.Template)
-
-		// Scale down the Deployment to disable it
-		if *deployment.Spec.Replicas != 0 {
-			deployment.Spec.Replicas = new(int32)
-			log.Info("Disabling source Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName)
-			if err := r.Update(ctx, deployment); err != nil {
-				r.Log.Error("Failed to scale down Deployment", "err", err)
-				return ctrl.Result{}, err
-			}
-		}
+	templateHash, err := r.handleSourceDeployment(ctx, minDeployment, req.Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	// Check if the MinDeployment is valid
 	if err := minDeployment.Check(); err != nil {
 		log.Error("Invalid MinDeployment", "error", err)
 		return ctrl.Result{}, err
 	}
 
-	// Get the current list of pods
-	podList := &corev1.PodList{}
-	errGet = r.List(
-		ctx,
-		podList,
-		client.InNamespace(req.Namespace),
-		client.MatchingLabels(minDeployment.Spec.Template.Labels),
-	)
-	if errGet != nil {
-		log.Error("Failed to list pods", "err", errGet)
-		return ctrl.Result{}, errGet
+	activePods, err := r.getActivePods(ctx, minDeployment, req.Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	// Remove the pods that have been marked for deletion
+	if err := r.reconcilePods(ctx, minDeployment, activePods, templateHash); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.updateStatus(ctx, minDeployment); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *MinDeploymentReconciler) getMinDeployment(
+	ctx context.Context,
+	namespacedName types.NamespacedName,
+) (*v1.MinDeployment, error) {
+	minDeployment := &v1.MinDeployment{}
+	if err := r.Get(ctx, namespacedName, minDeployment); err != nil {
+		if errors.IsNotFound(err) {
+			r.Log.Info("MinDeployment not found. Ignoring since it must have been deleted")
+			return nil, nil
+		}
+		r.Log.Error("Failed to get MinDeployment", "error", err)
+		return nil, err
+	}
+	return minDeployment, nil
+}
+
+func (r *MinDeploymentReconciler) handleSourceDeployment(
+	ctx context.Context,
+	minDeployment *v1.MinDeployment,
+	namespace string,
+) (string, error) {
+	if minDeployment.Spec.SourceDeploymentName == "" {
+		return generatePodTemplateHash(minDeployment.Spec.Template), nil
+	}
+
+	deployment := &appsv1.Deployment{}
+	if err := r.Get(
+		ctx,
+		client.ObjectKey{Name: minDeployment.Spec.SourceDeploymentName, Namespace: namespace},
+		deployment); err != nil {
+		r.Log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", err)
+		return "", err
+	}
+
+	r.deploymentToMinDeployment[types.NamespacedName{Namespace: namespace, Name: deployment.Name}] = types.NamespacedName{
+		Namespace: namespace,
+		Name:      minDeployment.Name,
+	}
+
+	minDeployment.Spec.Template = deployment.Spec.Template
+	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
+
+	if err := r.scaleDownDeployment(ctx, deployment); err != nil {
+		return "", err
+	}
+
+	return templateHash, nil
+}
+
+func (r *MinDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+	if *deployment.Spec.Replicas != 0 {
+		deployment.Spec.Replicas = new(int32)
+		r.Log.Info("Disabling source Deployment", "sourceDeploymentName", deployment.Name)
+		if err := r.Update(ctx, deployment); err != nil {
+			r.Log.Error("Failed to scale down Deployment", "err", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *MinDeploymentReconciler) getActivePods(
+	ctx context.Context,
+	minDeployment *v1.MinDeployment,
+	namespace string,
+) ([]corev1.Pod, error) {
+	podList := &corev1.PodList{}
+	listOpts := []client.ListOption{
+		client.InNamespace(namespace),
+		client.MatchingLabels(minDeployment.Spec.Template.Labels),
+	}
+	if err := r.List(ctx, podList, listOpts...); err != nil {
+		r.Log.Error("Failed to list pods", "err", err)
+		return nil, err
+	}
+
 	activePods := make([]corev1.Pod, 0, len(podList.Items))
 	for _, pod := range podList.Items {
 		if pod.DeletionTimestamp == nil {
@@ -130,83 +168,127 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	// The pods are sorted by creation timestamp (oldest are kept alive)
 	sort.Slice(activePods, func(i, j int) bool {
 		return activePods[j].CreationTimestamp.Before(&activePods[i].CreationTimestamp)
 	})
 
-	podCount := len(activePods)
-	log = log.With("podCount", podCount)
-	log.Info("Counted pod")
+	return activePods, nil
+}
 
+func (r *MinDeploymentReconciler) reconcilePods(
+	ctx context.Context,
+	minDeployment *v1.MinDeployment,
+	activePods []corev1.Pod,
+	templateHash string,
+) error {
+	if err := r.deleteMismatchedPods(ctx, minDeployment, activePods, templateHash); err != nil {
+		return err
+	}
+
+	podCount := len(activePods)
 	minDeployment.Status.Replicas = podCount
 
-	// Delete pods that do not match the current template hash
+	maxReplicas := r.calculateMaxReplicas(minDeployment)
+
+	if podCount < minDeployment.Spec.Replicas {
+		return r.createPod(ctx, minDeployment, templateHash)
+	} else if maxReplicas != nil && podCount > *maxReplicas {
+		return r.deletePod(ctx, minDeployment, &activePods[0])
+	}
+
+	r.Log.Debug("No action required")
+	return nil
+}
+
+func (r *MinDeploymentReconciler) deleteMismatchedPods(
+	ctx context.Context,
+	minDeployment *v1.MinDeployment,
+	activePods []corev1.Pod,
+	templateHash string,
+) error {
 	for _, pod := range activePods {
 		if pod.Annotations[PodTemplateHashAnnotation] != templateHash {
-			log.Info("Deleting pod due to hash mismatch", "pod", pod.Name, "podHash", pod.Annotations[PodTemplateHashAnnotation])
+			r.Log.Info(
+				"Deleting pod due to hash mismatch",
+				"pod", pod.Name,
+				"podHash", pod.Annotations[PodTemplateHashAnnotation],
+			)
 			if err := r.Delete(ctx, &pod); err != nil {
-				log.Error("Failed to delete pod", "err", err)
-				return ctrl.Result{}, err
+				r.Log.Error("Failed to delete pod", "err", err)
+				return err
 			}
 			minDeployment.Status.NbPodsDeleted++
 		}
 	}
+	return nil
+}
 
-	minReplicas := minDeployment.Spec.Replicas
-	maxReplicas := minDeployment.Spec.MaxReplicas
-
-	if maxReplicas == nil && minDeployment.Spec.MarginReplicas != nil {
-		maxReplicas = new(int)
-		*maxReplicas = minReplicas + *minDeployment.Spec.MarginReplicas
+func (r *MinDeploymentReconciler) calculateMaxReplicas(minDeployment *v1.MinDeployment) *int {
+	if minDeployment.Spec.MaxReplicas != nil {
+		return minDeployment.Spec.MaxReplicas
 	}
+	if minDeployment.Spec.MarginReplicas != nil {
+		maxReplicas := minDeployment.Spec.Replicas + *minDeployment.Spec.MarginReplicas
+		return &maxReplicas
+	}
+	return nil
+}
 
-	if podCount < minReplicas {
-		log.Info("Creating pod", "minReplicas", minDeployment.Spec.Replicas, "currentReplicas", podCount)
-		// Create a new Pod
-		newPod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: minDeployment.Name + "-pod-",
-				Namespace:    req.Namespace,
-				Labels:       minDeployment.Spec.Template.Labels,
-				Annotations: map[string]string{
-					PodTemplateHashAnnotation: templateHash,
-				},
+func (r *MinDeploymentReconciler) createPod(
+	ctx context.Context,
+	minDeployment *v1.MinDeployment,
+	templateHash string,
+) error {
+	r.Log.Info(
+		"Creating pod",
+		"minReplicas", minDeployment.Spec.Replicas,
+		"currentReplicas", minDeployment.Status.Replicas,
+	)
+	newPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: minDeployment.Name + "-pod-",
+			Namespace:    minDeployment.Namespace,
+			Labels:       minDeployment.Spec.Template.Labels,
+			Annotations: map[string]string{
+				PodTemplateHashAnnotation: templateHash,
 			},
-			Spec: minDeployment.Spec.Template.Spec,
-		}
-
-		// Set OwnerReference to ensure the pod is controlled by the MinDeployment resource
-		if err := controllerutil.SetControllerReference(minDeployment, newPod, r.Scheme); err != nil {
-			log.Error("Failed to set controller reference", "err", err)
-			return ctrl.Result{}, err
-		}
-
-		if err := r.Create(ctx, newPod); err != nil {
-			log.Error("Failed to create new pod", "err", err)
-			return ctrl.Result{}, err
-		}
-		minDeployment.Status.NbPodsCreated++
-	} else if maxReplicas != nil && podCount > *maxReplicas {
-		log.Info("Deleting a pod", "maxReplicas", *maxReplicas)
-		// Delete an existing Pod
-		podToDelete := &activePods[0]
-		if err := r.Delete(ctx, podToDelete); err != nil {
-			log.Error("Failed to delete pod", "err", err)
-			return ctrl.Result{}, err
-		}
-		minDeployment.Status.NbPodsDeleted++
-	} else {
-		log.Debug("No action required")
-		return ctrl.Result{}, nil
+		},
+		Spec: minDeployment.Spec.Template.Spec,
 	}
 
+	if err := controllerutil.SetControllerReference(minDeployment, newPod, r.Scheme); err != nil {
+		r.Log.Error("Failed to set controller reference", "err", err)
+		return err
+	}
+
+	if err := r.Create(ctx, newPod); err != nil {
+		r.Log.Error("Failed to create new pod", "err", err)
+		return err
+	}
+	minDeployment.Status.NbPodsCreated++
+	return nil
+}
+
+func (r *MinDeploymentReconciler) deletePod(
+	ctx context.Context,
+	minDeployment *v1.MinDeployment,
+	pod *corev1.Pod,
+) error {
+	r.Log.Info("Deleting a pod", "maxReplicas", *r.calculateMaxReplicas(minDeployment))
+	if err := r.Delete(ctx, pod); err != nil {
+		r.Log.Error("Failed to delete pod", "err", err)
+		return err
+	}
+	minDeployment.Status.NbPodsDeleted++
+	return nil
+}
+
+func (r *MinDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.MinDeployment) error {
 	if err := r.Status().Update(ctx, minDeployment); err != nil {
-		log.Error("Failed to update MinDeployment status", "err", err)
-		return ctrl.Result{}, err
+		r.Log.Error("Failed to update MinDeployment status", "err", err)
+		return err
 	}
-
-	return ctrl.Result{}, nil
+	return nil
 }
 
 func (r *MinDeploymentReconciler) findDeployment(ctx context.Context, deployment client.Object) []reconcile.Request {

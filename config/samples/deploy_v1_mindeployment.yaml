@@ -3,7 +3,7 @@ kind: MinDeployment
 metadata:
   name: nginx-mindeployment
 spec:
-  replicas: 3
+  replicas: 0
   maxReplicas: 5  # Optional
   template:
     metadata:
@@ -25,7 +25,7 @@ metadata:
     app: my-app2
   name: nginx-deployment
 spec:
-  replicas: 3
+  replicas: 0
   selector:
     matchLabels:
       app: my-app2
@@ -47,5 +47,5 @@ metadata:
   name: nginx-deployment-mindeployment
 spec:
   sourceDeploymentName: nginx-deployment
-  replicas: 2
+  replicas: 0
   maxReplicas: 10
