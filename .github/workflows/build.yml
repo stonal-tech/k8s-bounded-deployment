@@ -1,3 +1,5 @@
+# This workflow doesn't respect the stonal conventions as we intend to
+# open-source this project.
 name: Lint & Build
 
 on:
@@ -22,7 +24,7 @@ jobs:
       with:
           # https://github.com/golangci/golangci-lint/releases
           version: v1.60.3
-          # args: -v --timeout=20m
+          args: -v --timeout=20m
           # skip-cache: true
 
     - name: Run golangci-lint
