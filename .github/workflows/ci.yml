@@ -1,3 +1,5 @@
+# This workflow doesn't respect the stonal conventions as we intend to
+# open-source this project.
 name: Build container
 
 on:
