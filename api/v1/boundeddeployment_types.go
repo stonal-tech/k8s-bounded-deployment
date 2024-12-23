@@ -78,7 +78,7 @@ var ErrInvalidMinMaxReplicas = errors.New("Invalid min/max replicas")
 var ErrInvalidTemplate = errors.New("Invalid template")
 
 // Check validates the MinDeployment.
-func (m *MinDeployment) Check() error {
+func (m *BoundedDeployment) Check() error {
 	if m.Spec.Replicas < 0 {
 		return fmt.Errorf("%w: replicas must be at least 0", ErrInvalidMinMaxReplicas)
 	} else if m.Spec.MarginReplicas != nil && *m.Spec.MarginReplicas < 0 {
