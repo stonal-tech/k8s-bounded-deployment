@@ -32,25 +32,25 @@ func generatePodTemplateHash(template corev1.PodTemplateSpec) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// MinDeploymentReconciler reconciles a MinDeployment object
-type MinDeploymentReconciler struct {
+// BoundedDeploymentReconciler reconciles a BoundedDeployment object
+type BoundedDeploymentReconciler struct {
 	client.Client
 	Log    *slog.Logger
 	Scheme *runtime.Scheme
 
-	deploymentToMinDeployment map[types.NamespacedName]types.NamespacedName
+	deploymentToBoundedDeployment map[types.NamespacedName]types.NamespacedName
 }
 
-func (r *MinDeploymentReconciler) init() {
+func (r *BoundedDeploymentReconciler) init() {
 	r.Log = slog.Default()
-	r.deploymentToMinDeployment = make(map[types.NamespacedName]types.NamespacedName)
+	r.deploymentToBoundedDeployment = make(map[types.NamespacedName]types.NamespacedName)
 }
 
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/finalizers,verbs=update
 
-func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
 	log.Debug("Reconciling MinDeployment")
 
@@ -85,12 +85,12 @@ func (r *MinDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-func (r *MinDeploymentReconciler) getMinDeployment(
+func (r *BoundedDeploymentReconciler) getMinDeployment(
 	ctx context.Context,
 	namespacedName types.NamespacedName,
 	log *slog.Logger,
-) (*v1.MinDeployment, error) {
-	minDeployment := &v1.MinDeployment{}
+) (*v1.BoundedDeployment, error) {
+	minDeployment := &v1.BoundedDeployment{}
 	if err := r.Get(ctx, namespacedName, minDeployment); err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("MinDeployment not found. Ignoring since it must have been deleted")
@@ -102,9 +102,9 @@ func (r *MinDeploymentReconciler) getMinDeployment(
 	return minDeployment, nil
 }
 
-func (r *MinDeploymentReconciler) handleSourceDeployment(
+func (r *BoundedDeploymentReconciler) handleSourceDeployment(
 	ctx context.Context,
-	minDeployment *v1.MinDeployment,
+	minDeployment *v1.BoundedDeployment,
 	namespace string,
 	log *slog.Logger,
 ) (string, error) {
@@ -121,7 +121,7 @@ func (r *MinDeploymentReconciler) handleSourceDeployment(
 		return "", err
 	}
 
-	r.deploymentToMinDeployment[types.NamespacedName{Namespace: namespace, Name: deployment.Name}] = types.NamespacedName{
+	r.deploymentToBoundedDeployment[types.NamespacedName{Namespace: namespace, Name: deployment.Name}] = types.NamespacedName{
 		Namespace: namespace,
 		Name:      minDeployment.Name,
 	}
@@ -136,7 +136,7 @@ func (r *MinDeploymentReconciler) handleSourceDeployment(
 	return templateHash, nil
 }
 
-func (r *MinDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment, log *slog.Logger) error {
+func (r *BoundedDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment, log *slog.Logger) error {
 	if *deployment.Spec.Replicas != 0 {
 		deployment.Spec.Replicas = new(int32)
 		log.Info("Disabling source Deployment", "sourceDeploymentName", deployment.Name)
@@ -148,9 +148,9 @@ func (r *MinDeploymentReconciler) scaleDownDeployment(ctx context.Context, deplo
 	return nil
 }
 
-func (r *MinDeploymentReconciler) getActivePods(
+func (r *BoundedDeploymentReconciler) getActivePods(
 	ctx context.Context,
-	minDeployment *v1.MinDeployment,
+	minDeployment *v1.BoundedDeployment,
 	namespace string,
 	log *slog.Logger,
 ) ([]corev1.Pod, error) {
@@ -178,9 +178,9 @@ func (r *MinDeploymentReconciler) getActivePods(
 	return activePods, nil
 }
 
-func (r *MinDeploymentReconciler) reconcilePods(
+func (r *BoundedDeploymentReconciler) reconcilePods(
 	ctx context.Context,
-	minDeployment *v1.MinDeployment,
+	minDeployment *v1.BoundedDeployment,
 	activePods []corev1.Pod,
 	templateHash string,
 	log *slog.Logger,
@@ -204,9 +204,9 @@ func (r *MinDeploymentReconciler) reconcilePods(
 	return nil
 }
 
-func (r *MinDeploymentReconciler) deleteMismatchedPods(
+func (r *BoundedDeploymentReconciler) deleteMismatchedPods(
 	ctx context.Context,
-	minDeployment *v1.MinDeployment,
+	minDeployment *v1.BoundedDeployment,
 	activePods []corev1.Pod,
 	templateHash string,
 	log *slog.Logger,
@@ -228,7 +228,7 @@ func (r *MinDeploymentReconciler) deleteMismatchedPods(
 	return nil
 }
 
-func (r *MinDeploymentReconciler) calculateMaxReplicas(minDeployment *v1.MinDeployment) *int {
+func (r *BoundedDeploymentReconciler) calculateMaxReplicas(minDeployment *v1.BoundedDeployment) *int {
 	if minDeployment.Spec.MaxReplicas != nil {
 		return minDeployment.Spec.MaxReplicas
 	}
@@ -239,9 +239,9 @@ func (r *MinDeploymentReconciler) calculateMaxReplicas(minDeployment *v1.MinDepl
 	return nil
 }
 
-func (r *MinDeploymentReconciler) createPod(
+func (r *BoundedDeploymentReconciler) createPod(
 	ctx context.Context,
-	minDeployment *v1.MinDeployment,
+	minDeployment *v1.BoundedDeployment,
 	templateHash string,
 	log *slog.Logger,
 ) error {
@@ -275,9 +275,9 @@ func (r *MinDeploymentReconciler) createPod(
 	return nil
 }
 
-func (r *MinDeploymentReconciler) deletePod(
+func (r *BoundedDeploymentReconciler) deletePod(
 	ctx context.Context,
-	minDeployment *v1.MinDeployment,
+	minDeployment *v1.BoundedDeployment,
 	pod *corev1.Pod,
 	log *slog.Logger,
 ) error {
@@ -290,7 +290,7 @@ func (r *MinDeploymentReconciler) deletePod(
 	return nil
 }
 
-func (r *MinDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.MinDeployment, log *slog.Logger) error {
+func (r *BoundedDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.BoundedDeployment, log *slog.Logger) error {
 	if err := r.Status().Update(ctx, minDeployment); err != nil {
 		log.Error("Failed to update MinDeployment status", "err", err)
 		return err
@@ -298,7 +298,7 @@ func (r *MinDeploymentReconciler) updateStatus(ctx context.Context, minDeploymen
 	return nil
 }
 
-func (r *MinDeploymentReconciler) findDeployment(ctx context.Context, deployment client.Object) []reconcile.Request {
+func (r *BoundedDeploymentReconciler) findDeployment(ctx context.Context, deployment client.Object) []reconcile.Request {
 	deploymentsList := &appsv1.DeploymentList{}
 	listOps := &client.ListOptions{
 		// FieldSelector: fields.OneTermEqualSelector("configMapField", deployment.GetName()),
@@ -312,7 +312,7 @@ func (r *MinDeploymentReconciler) findDeployment(ctx context.Context, deployment
 	requests := make([]reconcile.Request, 0, len(deploymentsList.Items))
 	for _, item := range deploymentsList.Items {
 		srcNsName := types.NamespacedName{Namespace: item.GetNamespace(), Name: item.GetName()}
-		if targetNsName, ok := r.deploymentToMinDeployment[srcNsName]; ok {
+		if targetNsName, ok := r.deploymentToBoundedDeployment[srcNsName]; ok {
 			requests = append(
 				requests,
 				reconcile.Request{NamespacedName: targetNsName},
@@ -323,10 +323,10 @@ func (r *MinDeploymentReconciler) findDeployment(ctx context.Context, deployment
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *MinDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *BoundedDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.init()
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deploymentv1.MinDeployment{}).
+		For(&deploymentv1.BoundedDeployment{}).
 		Owns(&corev1.Pod{}).
 		Watches(
 			&appsv1.Deployment{},

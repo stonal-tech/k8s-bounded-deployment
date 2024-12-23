@@ -40,13 +40,13 @@ var _ = Describe("MinDeployment Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		mindeployment := &deploymentv1.MinDeployment{}
+		mindeployment := &deploymentv1.BoundedDeployment{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind MinDeployment")
 			err := k8sClient.Get(ctx, typeNamespacedName, mindeployment)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &deploymentv1.MinDeployment{
+				resource := &deploymentv1.BoundedDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("MinDeployment Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &deploymentv1.MinDeployment{}
+			resource := &deploymentv1.BoundedDeployment{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -68,7 +68,7 @@ var _ = Describe("MinDeployment Controller", func() {
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &MinDeploymentReconciler{
+			controllerReconciler := &BoundedDeploymentReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}
