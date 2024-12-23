@@ -25,3 +25,5 @@ go.work
 *.swo
 *~
 __*
+.aider*
+.env

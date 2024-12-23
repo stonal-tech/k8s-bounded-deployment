@@ -145,7 +145,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.MinDeploymentReconciler{
+	if err = (&controller.BoundedDeploymentReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
