@@ -32,18 +32,18 @@ func generatePodTemplateHash(template corev1.PodTemplateSpec) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// MinDeploymentReconciler reconciles a MinDeployment object
-type MinDeploymentReconciler struct {
+// BoundedDeploymentReconciler reconciles a BoundedDeployment object
+type BoundedDeploymentReconciler struct {
 	client.Client
 	Log    *slog.Logger
 	Scheme *runtime.Scheme
 
-	deploymentToMinDeployment map[types.NamespacedName]types.NamespacedName
+	deploymentToBoundedDeployment map[types.NamespacedName]types.NamespacedName
 }
 
-func (r *MinDeploymentReconciler) init() {
+func (r *BoundedDeploymentReconciler) init() {
 	r.Log = slog.Default()
-	r.deploymentToMinDeployment = make(map[types.NamespacedName]types.NamespacedName)
+	r.deploymentToBoundedDeployment = make(map[types.NamespacedName]types.NamespacedName)
 }
 
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments,verbs=get;list;watch;create;update;patch;delete

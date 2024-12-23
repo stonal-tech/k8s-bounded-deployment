@@ -27,8 +27,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// MinDeploymentSpec defines the desired state of MinDeployment
-type MinDeploymentSpec struct {
+// BoundedDeploymentSpec defines the desired state of BoundedDeployment
+type BoundedDeploymentSpec struct {
 	// Minimum number of replicas to for the deployment
 	// +kubebuilder:validation:Minimum=0
 	Replicas int `json:"replicas,omitempty"`
@@ -52,8 +52,8 @@ type MinDeploymentSpec struct {
 	SourceDeploymentName string `json:"sourceDeploymentName,omitempty"`
 }
 
-// MinDeploymentStatus defines the observed state of MinDeployment
-type MinDeploymentStatus struct {
+// BoundedDeploymentStatus defines the observed state of BoundedDeployment
+type BoundedDeploymentStatus struct {
 	// Current number of replicas
 	Replicas       int `json:"replicas,omitempty"`
 	NbPodsCreated  int `json:"nbPodsCreated,omitempty"`
@@ -64,13 +64,13 @@ type MinDeploymentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// MinDeployment is the Schema for the mindeployments API
-type MinDeployment struct {
+// BoundedDeployment is the Schema for the boundeddeployments API
+type BoundedDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MinDeploymentSpec   `json:"spec,omitempty"`
-	Status MinDeploymentStatus `json:"status,omitempty"`
+	Spec   BoundedDeploymentSpec   `json:"spec,omitempty"`
+	Status BoundedDeploymentStatus `json:"status,omitempty"`
 }
 
 var ErrInvalidMinMaxReplicas = errors.New("Invalid min/max replicas")
@@ -94,13 +94,13 @@ func (m *MinDeployment) Check() error {
 
 // +kubebuilder:object:root=true
 
-// MinDeploymentList contains a list of MinDeployment
-type MinDeploymentList struct {
+// BoundedDeploymentList contains a list of BoundedDeployment
+type BoundedDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []MinDeployment `json:"items"`
+	Items           []BoundedDeployment `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&MinDeployment{}, &MinDeploymentList{})
+	SchemeBuilder.Register(&BoundedDeployment{}, &BoundedDeploymentList{})
 }
