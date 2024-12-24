@@ -43,7 +43,7 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 	boundedDep.Namespace = deployment.Namespace
 	boundedDep.Spec.Template = deployment.Spec.Template
 	boundedDep.Spec.Replicas = int(*deployment.Spec.Replicas)
-	
+
 	// Scale down the original deployment
 	zero := int32(0)
 	deployment.Spec.Replicas = &zero
