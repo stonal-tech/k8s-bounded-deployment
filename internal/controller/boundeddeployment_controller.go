@@ -19,8 +19,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	deploymentv1 "github.com/stonal-tech/k8s-mindeployment/api/v1"
-	v1 "github.com/stonal-tech/k8s-mindeployment/api/v1"
+	deploymentv1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
+	v1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
 
 const PodTemplateHashAnnotation = "deploy.stonal.io/template-hash"

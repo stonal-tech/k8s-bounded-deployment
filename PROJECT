@@ -5,8 +5,8 @@
 domain: stonal.io
 layout:
 - go.kubebuilder.io/v4
-projectName: k8s-mindeployment
-repo: github.com/stonal-tech/k8s-mindeployment
+projectName: k8s-bounded-deployment
+repo: github.com/stonal-tech/k8s-bounded-deployment
 resources:
 - api:
     crdVersion: v1
@@ -15,6 +15,6 @@ resources:
   domain: stonal.io
   group: deployment
   kind: MinDeployment
-  path: github.com/stonal-tech/k8s-mindeployment/api/v1
+  path: github.com/stonal-tech/k8s-bounded-deployment/api/v1
   version: v1
 version: "3"
