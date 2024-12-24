@@ -1,4 +1,4 @@
-module github.com/stonal-tech/k8s-mindeployment
+module github.com/stonal-tech/k8s-bounded-deployment
 
 go 1.23.3
 

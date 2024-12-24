@@ -10,7 +10,7 @@ jobs:
     uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.19.0
     secrets: inherit
     with:
-      k8s-component: "k8s-mindeployment" # Declare it, only if you want to deploy it
+      k8s-component: "k8s-bounded-deployment" # Declare it, only if you want to deploy it
   ci:
     needs: main
     runs-on: stonal-ubuntu-22.04

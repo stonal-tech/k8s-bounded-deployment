@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	deploymentv1 "github.com/stonal-tech/k8s-mindeployment/api/v1"
+	deploymentv1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
 
 var _ = Describe("MinDeployment Controller", func() {
