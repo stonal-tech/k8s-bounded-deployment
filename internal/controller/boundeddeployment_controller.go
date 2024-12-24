@@ -108,32 +108,7 @@ func (r *BoundedDeploymentReconciler) handleSourceDeployment(
 	namespace string,
 	log *slog.Logger,
 ) (string, error) {
-	if minDeployment.Spec.SourceDeploymentName == "" {
-		return generatePodTemplateHash(minDeployment.Spec.Template), nil
-	}
-
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(
-		ctx,
-		client.ObjectKey{Name: minDeployment.Spec.SourceDeploymentName, Namespace: namespace},
-		deployment); err != nil {
-		log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", err)
-		return "", err
-	}
-
-	r.deploymentToBoundedDeployment[types.NamespacedName{Namespace: namespace, Name: deployment.Name}] = types.NamespacedName{
-		Namespace: namespace,
-		Name:      minDeployment.Name,
-	}
-
-	minDeployment.Spec.Template = deployment.Spec.Template
-	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
-
-	if err := r.scaleDownDeployment(ctx, deployment, log); err != nil {
-		return "", err
-	}
-
-	return templateHash, nil
+	return generatePodTemplateHash(minDeployment.Spec.Template), nil
 }
 
 func (r *BoundedDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment, log *slog.Logger) error {
