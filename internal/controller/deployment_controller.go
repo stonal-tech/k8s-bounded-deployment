@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,20 +36,15 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
+	oneInt := int(1)
+
 	// Create or update BoundedDeployment
 	boundedDep := &deploymentv1.BoundedDeployment{}
-	boundedDep.Name = fmt.Sprintf("%s-bounded", deployment.Name)
+	boundedDep.Name = deployment.Name
 	boundedDep.Namespace = deployment.Namespace
 	boundedDep.Spec.Template = deployment.Spec.Template
 	boundedDep.Spec.Replicas = int(*deployment.Spec.Replicas)
-
-	// Scale down the original deployment
-	zero := int32(0)
-	deployment.Spec.Replicas = &zero
-	if err := r.Update(ctx, deployment); err != nil {
-		logger.Error(err, "failed to scale down deployment")
-		return ctrl.Result{}, err
-	}
+	boundedDep.Spec.MarginReplicas = &oneInt
 
 	// Create/Update the BoundedDeployment
 	if err := r.Create(ctx, boundedDep); err != nil {
@@ -58,6 +52,14 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 			logger.Error(err, "failed to create BoundedDeployment")
 			return ctrl.Result{}, err
 		}
+	}
+
+	// Scale down the original deployment
+	zeroInt32 := int32(0)
+	deployment.Spec.Replicas = &zeroInt32
+	if err := r.Update(ctx, deployment); err != nil {
+		logger.Error(err, "failed to scale down deployment")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
