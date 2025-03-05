@@ -14,7 +14,7 @@ resources:
   controller: true
   domain: stonal.io
   group: deployment
-  kind: MinDeployment
+  kind: BoundedDeployment
   path: github.com/stonal-tech/k8s-bounded-deployment/api/v1
   version: v1
 version: "3"
