@@ -59,10 +59,7 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	templateHash, err := r.handleSourceDeployment(ctx, minDeployment, req.Namespace, log)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
 
 	if err := minDeployment.Check(); err != nil {
 		log.Error("Invalid MinDeployment", "error", err)
@@ -100,52 +97,6 @@ func (r *BoundedDeploymentReconciler) getMinDeployment(
 		return nil, err
 	}
 	return minDeployment, nil
-}
-
-func (r *BoundedDeploymentReconciler) handleSourceDeployment(
-	ctx context.Context,
-	minDeployment *v1.BoundedDeployment,
-	namespace string,
-	log *slog.Logger,
-) (string, error) {
-	if minDeployment.Spec.SourceDeploymentName == "" {
-		return generatePodTemplateHash(minDeployment.Spec.Template), nil
-	}
-
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(
-		ctx,
-		client.ObjectKey{Name: minDeployment.Spec.SourceDeploymentName, Namespace: namespace},
-		deployment); err != nil {
-		log.Error("Failed to get Deployment", "sourceDeploymentName", minDeployment.Spec.SourceDeploymentName, "err", err)
-		return "", err
-	}
-
-	r.deploymentToBoundedDeployment[types.NamespacedName{Namespace: namespace, Name: deployment.Name}] = types.NamespacedName{
-		Namespace: namespace,
-		Name:      minDeployment.Name,
-	}
-
-	minDeployment.Spec.Template = deployment.Spec.Template
-	templateHash := generatePodTemplateHash(minDeployment.Spec.Template)
-
-	if err := r.scaleDownDeployment(ctx, deployment, log); err != nil {
-		return "", err
-	}
-
-	return templateHash, nil
-}
-
-func (r *BoundedDeploymentReconciler) scaleDownDeployment(ctx context.Context, deployment *appsv1.Deployment, log *slog.Logger) error {
-	if *deployment.Spec.Replicas != 0 {
-		deployment.Spec.Replicas = new(int32)
-		log.Info("Disabling source Deployment", "sourceDeploymentName", deployment.Name)
-		if err := r.Update(ctx, deployment); err != nil {
-			log.Error("Failed to scale down Deployment", "err", err)
-			return err
-		}
-	}
-	return nil
 }
 
 func (r *BoundedDeploymentReconciler) getActivePods(
