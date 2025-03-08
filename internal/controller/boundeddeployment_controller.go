@@ -137,6 +137,19 @@ func (r *BoundedDeploymentReconciler) reconcilePods(
 	templateHash string,
 	log *slog.Logger,
 ) error {
+	// Delete pods with Succeeded status
+	for i := range activePods {
+		pod := &activePods[i]
+		if pod.Status.Phase == corev1.PodSucceeded {
+			log.Info("Deleting succeeded pod", "pod", pod.Name)
+			if err := r.deletePod(ctx, minDeployment, pod, log); err != nil {
+				return err
+			}
+			// Pod will be deleted, continue with reconciliation
+			return nil
+		}
+	}
+
 	if err := r.deleteMismatchedPods(ctx, minDeployment, activePods, templateHash, log); err != nil {
 		return err
 	}
