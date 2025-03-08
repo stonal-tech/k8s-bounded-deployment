@@ -5,9 +5,47 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - deployments/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - deploy.stonal.io
   resources:
-  - mindeployments
+  - boundeddeployments
   verbs:
   - create
   - delete
@@ -19,13 +57,13 @@ rules:
 - apiGroups:
   - deploy.stonal.io
   resources:
-  - mindeployments/finalizers
+  - boundeddeployments/finalizers
   verbs:
   - update
 - apiGroups:
   - deploy.stonal.io
   resources:
-  - mindeployments/status
+  - boundeddeployments/status
   verbs:
   - get
   - patch

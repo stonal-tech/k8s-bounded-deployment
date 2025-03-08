@@ -63,7 +63,7 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: controller:latest
+        image: 983974232060.dkr.ecr.eu-west-3.amazonaws.com/k8s-bounded-deployment:latest
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

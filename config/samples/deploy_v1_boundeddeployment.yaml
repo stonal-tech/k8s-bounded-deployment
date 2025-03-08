@@ -1,7 +1,7 @@
 apiVersion: deploy.stonal.io/v1
-kind: MinDeployment
+kind: BoundedDeployment
 metadata:
-  name: nginx-mindeployment
+  name: nginx-boundeddeployment
 spec:
   replicas: 0
   maxReplicas: 5  # Optional
@@ -40,11 +40,11 @@ spec:
           ports:
             - containerPort: 80
 ---
-# MinDeployment based on the standard nginx deployment
+# BoundedDeployment based on the standard nginx deployment
 apiVersion: deploy.stonal.io/v1
-kind: MinDeployment
+kind: BoundedDeployment
 metadata:
-  name: nginx-deployment-mindeployment
+  name: nginx-deployment-boundeddeployment
 spec:
   sourceDeploymentName: nginx-deployment
   replicas: 0

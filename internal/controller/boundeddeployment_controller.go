@@ -46,9 +46,10 @@ func (r *BoundedDeploymentReconciler) init() {
 	r.deploymentToBoundedDeployment = make(map[types.NamespacedName]types.NamespacedName)
 }
 
-// +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
@@ -243,9 +244,15 @@ func (r *BoundedDeploymentReconciler) deletePod(
 
 func (r *BoundedDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.BoundedDeployment, log *slog.Logger) error {
 	if err := r.Status().Update(ctx, minDeployment); err != nil {
-		log.Error("Failed to update MinDeployment status", "err", err)
+		if errors.IsConflict(err) {
+			log.Debug("Conflict detected when updating status, retrying with latest version", "err", err)
+			return nil
+		}
+
+		log.Error("Failed to update BoundedDeployment status", "err", err)
 		return err
 	}
+
 	return nil
 }
 
