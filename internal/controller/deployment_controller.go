@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,6 +45,11 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 	boundedDep.Namespace = deployment.Namespace
 	boundedDep.Spec.Template = deployment.Spec.Template
 	boundedDep.Spec.Replicas = int(*deployment.Spec.Replicas)
+
+	// If the container restartPolicy is Always, we need to set the restartPolicy to OnFailure
+	if deployment.Spec.Template.Spec.RestartPolicy == v1.RestartPolicyAlways {
+		boundedDep.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyOnFailure
+	}
 
 	// Check if deployment has our annotation
 	if val, exists := deployment.Annotations[BoundedAnnotationMax]; exists {
