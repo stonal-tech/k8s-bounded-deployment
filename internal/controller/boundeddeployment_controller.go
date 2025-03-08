@@ -46,9 +46,9 @@ func (r *BoundedDeploymentReconciler) init() {
 	r.deploymentToBoundedDeployment = make(map[types.NamespacedName]types.NamespacedName)
 }
 
-// +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=deploy.stonal.io,resources=mindeployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments/finalizers,verbs=update
 
 func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
