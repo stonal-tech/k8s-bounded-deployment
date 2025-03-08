@@ -7,7 +7,7 @@ rules:
 - apiGroups:
   - deploy.stonal.io
   resources:
-  - mindeployments
+  - boundeddeployments
   verbs:
   - create
   - delete
@@ -19,13 +19,13 @@ rules:
 - apiGroups:
   - deploy.stonal.io
   resources:
-  - mindeployments/finalizers
+  - boundeddeployments/finalizers
   verbs:
   - update
 - apiGroups:
   - deploy.stonal.io
   resources:
-  - mindeployments/status
+  - boundeddeployments/status
   verbs:
   - get
   - patch
