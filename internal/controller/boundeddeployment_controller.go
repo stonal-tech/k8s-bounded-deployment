@@ -244,9 +244,9 @@ func (r *BoundedDeploymentReconciler) deletePod(
 
 func (r *BoundedDeploymentReconciler) updateStatus(ctx context.Context, minDeployment *v1.BoundedDeployment, log *slog.Logger) error {
 	if err := r.Status().Update(ctx, minDeployment); err != nil {
-		log.Error("Failed to update MinDeployment status", "err", err)
-		return err
+		log.Debug("Failed to update BoundedDeployment status", "err", err)
 	}
+
 	return nil
 }
 
