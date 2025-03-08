@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,7 +14,9 @@ import (
 )
 
 const (
-	BoundedAnnotation = "stonal.io/bounded"
+	BoundedAnnotationMargin  = "stonal.io/bounded-margin"
+	BoundedAnnotationMax     = "stonal.io/bounded-max"
+	BoundedAnnotationEnabled = "stonal.io/bounded-enabled"
 )
 
 // DeploymentController reconciles Deployment objects
@@ -35,20 +38,40 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Check if deployment has our annotation
-	if val, exists := deployment.Annotations[BoundedAnnotation]; !exists || val != "true" {
-		return ctrl.Result{}, nil
-	}
-
-	oneInt := int(1)
-
 	// Create or update BoundedDeployment
 	boundedDep := &deploymentv1.BoundedDeployment{}
 	boundedDep.Name = deployment.Name
 	boundedDep.Namespace = deployment.Namespace
 	boundedDep.Spec.Template = deployment.Spec.Template
 	boundedDep.Spec.Replicas = int(*deployment.Spec.Replicas)
-	boundedDep.Spec.MarginReplicas = &oneInt
+
+	// Check if deployment has our annotation
+	if val, exists := deployment.Annotations[BoundedAnnotationMax]; exists {
+		maxReplicas, err := strconv.Atoi(val)
+		if err != nil {
+			logger.Error(err, "failed to convert max replicas to int")
+			return ctrl.Result{}, err
+		}
+		boundedDep.Spec.MaxReplicas = &maxReplicas
+	} else if val, exists := deployment.Annotations[BoundedAnnotationMargin]; exists {
+		marginReplicas, err := strconv.Atoi(val)
+		if err != nil {
+			logger.Error(err, "failed to convert margin replicas to int")
+			return ctrl.Result{}, err
+		}
+		boundedDep.Spec.MarginReplicas = &marginReplicas
+	} else if val, exists := deployment.Annotations[BoundedAnnotationEnabled]; exists {
+		enabled, err := strconv.ParseBool(val)
+		if err != nil {
+			logger.Error(err, "failed to convert enabled to bool")
+			return ctrl.Result{}, err
+		}
+		if !enabled {
+			return ctrl.Result{}, nil
+		}
+	} else {
+		return ctrl.Result{}, nil
+	}
 
 	// Create/Update the BoundedDeployment
 	if err := r.Create(ctx, boundedDep); err != nil {
