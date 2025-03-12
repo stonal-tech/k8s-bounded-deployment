@@ -46,19 +46,15 @@ type BoundedDeploymentSpec struct {
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:validation:Optional
 	Template corev1.PodTemplateSpec `json:"template,omitempty"`
-
-	// Name of the source deployment to copy the template from
-	// +kubebuilder:validation:Optional
-	SourceDeploymentName string `json:"sourceDeploymentName,omitempty"`
 }
 
 // BoundedDeploymentStatus defines the observed state of BoundedDeployment
 type BoundedDeploymentStatus struct {
 	// Current number of replicas
-	Replicas       int `json:"replicas,omitempty"`
-	NbPodsCreated  int `json:"nbPodsCreated,omitempty"`
-	NbPodsDeleted  int `json:"nbPodsDeleted,omitempty"`
-	NbPodsOutdated int `json:"nbPodsOutdated,omitempty"`
+	Replicas int `json:"replicas,omitempty"`
+
+	// template hash
+	TemplateHash string `json:"templateHash,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,10 +45,9 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 	boundedDep.Spec.Template = deployment.Spec.Template
 	boundedDep.Spec.Replicas = int(*deployment.Spec.Replicas)
 
-	// If the container restartPolicy is Always, we need to set the restartPolicy to OnFailure
-	if deployment.Spec.Template.Spec.RestartPolicy == v1.RestartPolicyAlways {
-		boundedDep.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyOnFailure
-	}
+	// The restartPolicy is left untouched, it will be handled by the BoundedDeployment controller
+
+	enabled := false
 
 	// Check if deployment has our annotation
 	if val, exists := deployment.Annotations[BoundedAnnotationMax]; exists {
@@ -59,23 +57,27 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 		boundedDep.Spec.MaxReplicas = &maxReplicas
-	} else if val, exists := deployment.Annotations[BoundedAnnotationMargin]; exists {
+		enabled = true
+	}
+	if val, exists := deployment.Annotations[BoundedAnnotationMargin]; exists {
 		marginReplicas, err := strconv.Atoi(val)
 		if err != nil {
 			logger.Error(err, "failed to convert margin replicas to int")
 			return ctrl.Result{}, err
 		}
 		boundedDep.Spec.MarginReplicas = &marginReplicas
-	} else if val, exists := deployment.Annotations[BoundedAnnotationEnabled]; exists {
-		enabled, err := strconv.ParseBool(val)
+		enabled = true
+	}
+	if val, exists := deployment.Annotations[BoundedAnnotationEnabled]; exists {
+		var err error
+		enabled, err = strconv.ParseBool(val)
 		if err != nil {
 			logger.Error(err, "failed to convert enabled to bool")
 			return ctrl.Result{}, err
 		}
-		if !enabled {
-			return ctrl.Result{}, nil
-		}
-	} else {
+	}
+
+	if !enabled {
 		return ctrl.Result{}, nil
 	}
 
