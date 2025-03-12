@@ -82,7 +82,7 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, err
 	}
 
-	statusBefore := boundedDep.Status
+	boundedBefore := boundedDep.DeepCopy()
 
 	if err := r.checkBoundedDeployment(ctx, boundedDep, log); err != nil {
 		return ctrl.Result{}, err
@@ -102,10 +102,10 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	boundedDep.Status.Replicas = len(activePods)
 	boundedDep.Status.TemplateHash = templateHash
 
-	if statusBefore != boundedDep.Status {
+	if boundedBefore.Status != boundedDep.Status {
 		log.Info("Status updated", "status", boundedDep.Status)
 
-		if err := r.updateStatus(ctx, boundedDep, log); err != nil {
+		if err := r.updateStatus(ctx, boundedBefore, boundedDep, log); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -284,16 +284,18 @@ func (r *BoundedDeploymentReconciler) deletePod(
 
 func (r *BoundedDeploymentReconciler) updateStatus(
 	ctx context.Context,
+	boundedBefore *v1.BoundedDeployment,
 	boundedDep *v1.BoundedDeployment,
 	log *slog.Logger,
 ) error {
-	if err := r.Status().Update(ctx, boundedDep); err != nil {
+	statusPatch := client.MergeFrom(boundedBefore)
+	if err := r.Status().Patch(ctx, boundedDep, statusPatch); err != nil {
 		if k8serrors.IsConflict(err) {
 			log.Debug("Conflict detected when updating status", "err", err)
 			return nil
 		}
 
-		log.Error("Failed to update BoundedDeployment status", "err", err)
+		log.Error("Failed to patch BoundedDeployment status", "err", err)
 		return err
 	}
 
