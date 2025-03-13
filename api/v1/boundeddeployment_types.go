@@ -53,6 +53,9 @@ type BoundedDeploymentStatus struct {
 	// Current number of replicas
 	Replicas int `json:"replicas,omitempty"`
 
+	// Current number of ready replicas
+	ReadyReplicas int `json:"readyReplicas,omitempty"`
+
 	// template hash
 	TemplateHash string `json:"templateHash,omitempty"`
 }
