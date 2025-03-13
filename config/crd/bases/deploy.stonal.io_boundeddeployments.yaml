@@ -56,6 +56,9 @@ spec:
           status:
             description: BoundedDeploymentStatus defines the observed state of BoundedDeployment
             properties:
+              readyReplicas:
+                description: Current number of ready replicas
+                type: integer
               replicas:
                 description: Current number of replicas
                 type: integer

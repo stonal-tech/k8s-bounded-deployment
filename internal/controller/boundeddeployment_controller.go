@@ -68,6 +68,21 @@ func (r *BoundedDeploymentReconciler) checkBoundedDeployment(
 	return nil
 }
 
+func countNbReadyReplicas(pods []corev1.Pod) int {
+	readyReplicas := 0
+	for _, pod := range pods {
+		if pod.Status.Phase == corev1.PodRunning {
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+					readyReplicas++
+					break
+				}
+			}
+		}
+	}
+	return readyReplicas
+}
+
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=deploy.stonal.io,resources=boundeddeployments/finalizers,verbs=update
@@ -100,6 +115,7 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	boundedDep.Status.Replicas = len(activePods)
+	boundedDep.Status.ReadyReplicas = countNbReadyReplicas(activePods)
 	boundedDep.Status.TemplateHash = templateHash
 
 	if boundedBefore.Status != boundedDep.Status {
@@ -186,7 +202,6 @@ func (r *BoundedDeploymentReconciler) reconcilePods(
 	}
 
 	podCount := len(activePods)
-	boundedDep.Status.Replicas = podCount
 
 	maxReplicas := r.calculateMaxReplicas(boundedDep)
 
