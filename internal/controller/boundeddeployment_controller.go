@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sort"
 
@@ -187,10 +188,15 @@ func (r *BoundedDeploymentReconciler) reconcilePods(
 	// Delete pods with Succeeded status
 	for i := range activePods {
 		pod := &activePods[i]
-		if pod.Status.Phase == corev1.PodSucceeded {
-			log.Info("Deleting succeeded pod", "pod", pod.Name)
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			log.Info(
+				"Deleting pod",
+				"podName", pod.Name,
+				"podStatusPhase", pod.Status.Phase,
+				"podStatusReason", pod.Status.Reason,
+			)
 			if err := r.deletePod(ctx, boundedDep, pod, log); err != nil {
-				return err
+				return fmt.Errorf("failed to delete pod %s: %w", pod.Name, err)
 			}
 			// Pod will be deleted, continue with reconciliation
 			return nil
