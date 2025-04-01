@@ -157,7 +157,7 @@ func (r *BoundedDeploymentReconciler) getActivePods(
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
-		client.MatchingLabels(minDeployment.Spec.Template.Labels),
+		client.MatchingFields{"metadata.ownerReferences.controller": minDeployment.Name},
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
 		log.Error("Failed to list pods", "err", err)
@@ -326,6 +326,22 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 // SetupWithManager sets up the controller with the Manager.
 func (r *BoundedDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.init()
+
+	// Set up index for pod controller references
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "metadata.ownerReferences.controller", func(obj client.Object) []string {
+		// Get the pod object
+		pod := obj.(*corev1.Pod)
+		// Find owner reference for the BoundedDeployment controller
+		for _, ref := range pod.OwnerReferences {
+			if ref.Controller != nil && *ref.Controller {
+				return []string{ref.Name}
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deploymentv1.BoundedDeployment{}).
 		Owns(&corev1.Pod{}).
