@@ -23,6 +23,7 @@ import (
 )
 
 const PodTemplateHashAnnotation = "deploy.stonal.io/template-hash"
+const BoundedDeploymentLabel = "deploy.stonal.io/boundeddeployment"
 
 // generatePodTemplateHash generates a hash for a given pod template spec.
 func generatePodTemplateHash(template corev1.PodTemplateSpec) string {
@@ -157,7 +158,9 @@ func (r *BoundedDeploymentReconciler) getActivePods(
 	podList := &corev1.PodList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
-		client.MatchingLabels(minDeployment.Spec.Template.Labels),
+		client.MatchingLabels(map[string]string{
+			BoundedDeploymentLabel: minDeployment.Name,
+		}),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
 		log.Error("Failed to list pods", "err", err)
@@ -270,11 +273,21 @@ func (r *BoundedDeploymentReconciler) createPod(
 		"minReplicas", boundedDep.Spec.Replicas,
 		"currentReplicas", boundedDep.Status.Replicas,
 	)
+
+	// Create a copy of labels from the template
+	labels := make(map[string]string)
+	for k, v := range boundedDep.Spec.Template.Labels {
+		labels[k] = v
+	}
+
+	// Add the BoundedDeployment label
+	labels[BoundedDeploymentLabel] = boundedDep.Name
+
 	newPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: boundedDep.Name + "-bounded-",
 			Namespace:    boundedDep.Namespace,
-			Labels:       boundedDep.Spec.Template.Labels,
+			Labels:       labels,
 			Annotations: map[string]string{
 				PodTemplateHashAnnotation: templateHash,
 			},
