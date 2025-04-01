@@ -231,11 +231,16 @@ func (r *BoundedDeploymentReconciler) deleteMismatchedPods(
 	log *slog.Logger,
 ) error {
 	for _, pod := range activePods {
-		if pod.Annotations[PodTemplateHashAnnotation] != templateHash {
+		podHash := pod.Annotations[PodTemplateHashAnnotation]
+		if podHash == "" {
+			log.Warn("Pod has no hash annotation, this probably means it's not a BoundedDeployment pod")
+			continue
+		}
+		if podHash != templateHash {
 			log.Info(
 				"Deleting pod due to hash mismatch",
 				"pod", pod.Name,
-				"podHash", pod.Annotations[PodTemplateHashAnnotation],
+				"podHash", podHash,
 			)
 			if err := r.Delete(ctx, &pod); err != nil {
 				log.Error("Failed to delete pod", "err", err)
