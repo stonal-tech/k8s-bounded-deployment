@@ -62,6 +62,12 @@ type BoundedDeploymentStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=bd
+// +kubebuilder:printcolumn:name="Min",type=integer,JSONPath=`.spec.replicas`
+// +kubebuilder:printcolumn:name="Max",type=integer,JSONPath=`.spec.maxReplicas`
+// +kubebuilder:printcolumn:name="Margin",type=integer,JSONPath=`.spec.margin`
+// +kubebuilder:printcolumn:name="Current",type=integer,JSONPath=`.status.replicas`
+// +kubebuilder:printcolumn:name="Ready",type=integer,JSONPath=`.status.readyReplicas`
 
 // BoundedDeployment is the Schema for the boundeddeployments API
 type BoundedDeployment struct {
