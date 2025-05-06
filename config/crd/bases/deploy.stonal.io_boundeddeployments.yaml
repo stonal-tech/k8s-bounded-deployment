@@ -12,6 +12,8 @@ spec:
     listKind: BoundedDeploymentList
     plural: boundeddeployments
     singular: boundeddeployment
+    shortNames:
+      - bd
   scope: Namespaced
   versions:
   - name: v1
