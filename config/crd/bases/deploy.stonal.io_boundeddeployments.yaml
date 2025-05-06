@@ -69,5 +69,36 @@ spec:
         type: object
     served: true
     storage: true
+    additionalPrinterColumns:
+      # ─── Spec fields ───────────────────────────────────────────────
+      - name: Min
+        type: integer
+        description: Minimum desired replicas
+        jsonPath: .spec.replicas
+      - name: Max
+        type: integer
+        description: Maximum allowed replicas (optional)
+        jsonPath: .spec.maxReplicas
+      - name: Margin
+        type: integer
+        description: Margin between min & max
+        jsonPath: .spec.margin
+
+      # ─── Status fields ─────────────────────────────────────────────
+      - name: Current
+        type: integer
+        description: Observed replicas
+        jsonPath: .status.replicas
+      - name: Ready
+        type: integer
+        description: Ready replicas
+        jsonPath: .status.readyReplicas
+
+      # ─── Other useful info (hidden on narrow terminals) ────────────
+      - name: Hash
+        type: string
+        description: Pod template hash
+        jsonPath: .status.templateHash
+        priority: 1        # show only with “-o wide”
     subresources:
       status: {}
