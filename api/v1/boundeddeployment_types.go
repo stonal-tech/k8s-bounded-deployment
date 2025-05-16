@@ -78,9 +78,9 @@ type BoundedDeployment struct {
 	Status BoundedDeploymentStatus `json:"status,omitempty"`
 }
 
-var ErrInvalidMinMaxReplicas = errors.New("Invalid min/max replicas")
+var ErrInvalidMinMaxReplicas = errors.New("invalid min/max replicas")
 
-var ErrInvalidTemplate = errors.New("Invalid template")
+var ErrInvalidTemplate = errors.New("invalid template")
 
 // Check validates the MinDeployment.
 func (m *BoundedDeployment) Check() error {

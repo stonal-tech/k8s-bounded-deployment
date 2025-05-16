@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	deploymentv1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 	v1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
 
@@ -345,7 +344,7 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 func (r *BoundedDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.init()
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deploymentv1.BoundedDeployment{}).
+		For(&v1.BoundedDeployment{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
 }
