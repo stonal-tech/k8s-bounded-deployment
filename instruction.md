@@ -7,7 +7,7 @@ kind: Pod
 metadata:
   name: my-pod
   ownerReferences:
-  - apiVersion: your-api-group/v1
+  - apiVersion: deploy.stonal.io/v1
     kind: BoundedDeployment
     name: my-boundeddeployment
     uid: <boundeddeployment-uid>
@@ -16,24 +16,17 @@ metadata:
 
 In your controller code, when creating pods:
 ```go
-// Example in Go
-pod := &corev1.Pod{
-    ObjectMeta: metav1.ObjectMeta{
-        Name:      podName,
-        Namespace: boundedDeployment.Namespace,
-        OwnerReferences: []metav1.OwnerReference{
-            *metav1.NewControllerRef(boundedDeployment, schema.GroupVersionKind{
-                Group:   "your-api-group",
-                Version: "v1",
-                Kind:    "BoundedDeployment",
-            }),
-        },
-    },
-    // ... rest of pod spec
+import (
+    "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+    v1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
+)
+// ...
+if err := controllerutil.SetControllerReference(boundedDep, newPod, r.Scheme); err != nil {
+    // handle error
 }
 ```
 
-## Add CRD with status subresources
+## Add CRD with status subresource
 Add a status subresource to track managed pods:
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -42,10 +35,6 @@ spec:
   # ... existing spec
   subresources:
     status: {}
-    scale:
-      specReplicasPath: .spec.replicas
-      statusReplicasPath: .status.replicas
-      labelSelectorPath: .status.selector
   versions:
   - name: v1
     schema:
@@ -57,8 +46,13 @@ spec:
             properties:
               replicas:
                 type: integer
-              selector:
-                type: object
+              maxReplicas:
+                type: integer
+              margin:
+                type: integer
+              template:
+                x-kubernetes-preserve-unknown-fields: true
+                description: Template for the pods to start
           status:
             type: object
             properties:
@@ -66,12 +60,8 @@ spec:
                 type: integer
               readyReplicas:
                 type: integer
-              selector:
+              templateHash:
                 type: string
-              conditions:
-                type: array
-                items:
-                  type: object
 ```
 
 ## Implement Proper Status Updates
@@ -79,18 +69,14 @@ spec:
 Your controller should update the status with pod information:
 
 ```go
-// Update status with current pod count and selector
-status := &BoundedDeploymentStatus{
-    Replicas:      int32(len(allPods)),
-    ReadyReplicas: int32(len(readyPods)),
-    Selector:      labels.Set(boundedDeployment.Spec.Selector.MatchLabels).String(),
-}
-boundedDeployment.Status = *status
+boundedDep.Status.Replicas = len(activePods)
+boundedDep.Status.ReadyReplicas = countNbReadyReplicas(activePods)
+boundedDep.Status.TemplateHash = templateHash
 ```
 
-## Use consistent labels
+## Use consistent labels and annotations
 
-Ensure your pods have consistent labels that match your selector:
+Ensure your pods have consistent labels and annotations that match your selector and controller conventions:
 
 ```yaml
 apiVersion: v1
@@ -98,7 +84,13 @@ kind: Pod
 metadata:
   labels:
     app: my-app
-    boundeddeployment: my-boundeddeployment
+    deploy.stonal.io/boundeddeployment: my-boundeddeployment
+  annotations:
+    deploy.stonal.io/template-hash: <hash>
 spec:
   # ... pod spec
 ```
+
+## Reference sample CR
+
+See `config/samples/deploy_v1_boundeddeployment.yaml` for up-to-date examples of BoundedDeployment usage and field conventions.
