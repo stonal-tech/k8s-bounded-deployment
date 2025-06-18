@@ -155,7 +155,7 @@ func (r *BoundedDeploymentReconciler) getBoundedDeployment(
 
 func (r *BoundedDeploymentReconciler) getActivePods(
 	ctx context.Context,
-	minDeployment *v1.BoundedDeployment,
+	boundedDeployment *v1.BoundedDeployment,
 	namespace string,
 	log *slog.Logger,
 ) ([]corev1.Pod, error) {
@@ -163,7 +163,7 @@ func (r *BoundedDeploymentReconciler) getActivePods(
 	listOpts := []client.ListOption{
 		client.InNamespace(namespace),
 		client.MatchingLabels(map[string]string{
-			BoundedDeploymentLabel: minDeployment.Name,
+			BoundedDeploymentLabel: boundedDeployment.Name,
 		}),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
