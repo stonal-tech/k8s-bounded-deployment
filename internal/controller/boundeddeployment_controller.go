@@ -282,14 +282,21 @@ func (r *BoundedDeploymentReconciler) createPod(
 	// Add the BoundedDeployment label
 	labels[BoundedDeploymentLabel] = boundedDep.Name
 
+	// Create a copy of annotations from the template
+	annotations := make(map[string]string)
+	for k, v := range boundedDep.Spec.Template.Annotations {
+		annotations[k] = v
+	}
+
+	// Add the template hash annotation
+	annotations[PodTemplateHashAnnotation] = templateHash
+
 	newPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: boundedDep.Name + "-bounded-",
 			Namespace:    boundedDep.Namespace,
 			Labels:       labels,
-			Annotations: map[string]string{
-				PodTemplateHashAnnotation: templateHash,
-			},
+			Annotations:  annotations,
 		},
 		Spec: boundedDep.Spec.Template.Spec,
 	}
