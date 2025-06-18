@@ -354,17 +354,9 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 
 // getLabelsAsSelector returns the label selector for pods managed by this BoundedDeployment
 func getLabelsAsSelector(boundedDep *v1.BoundedDeployment) string {
-	labelMap := make(map[string]string)
-
-	// Add labels from the template
-	for k, v := range boundedDep.Spec.Template.Labels {
-		labelMap[k] = v
-	}
-
-	// Add the BoundedDeployment label
-	labelMap[BoundedDeploymentLabel] = boundedDep.Name
-
-	return labels.Set(labelMap).String()
+	return labels.Set(map[string]string{
+		BoundedDeploymentLabel: boundedDep.Name,
+	}).String()
 }
 
 // SetupWithManager sets up the controller with the Manager.
