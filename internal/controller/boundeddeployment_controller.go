@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -90,6 +91,9 @@ func countNbReadyReplicas(pods []corev1.Pod) int {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	if r.Log == nil {
+		r.init()
+	}
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
 	log.Debug("Reconciling BoundedDeployment")
 
@@ -118,6 +122,7 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	boundedDep.Status.Replicas = len(activePods)
 	boundedDep.Status.ReadyReplicas = countNbReadyReplicas(activePods)
 	boundedDep.Status.TemplateHash = templateHash
+	boundedDep.Status.Selector = getLabelsAsSelector(boundedDep)
 
 	if boundedBefore.Status != boundedDep.Status {
 		log.Info("Status updated", "status", boundedDep.Status)
@@ -345,6 +350,21 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 	}
 
 	return nil
+}
+
+// getLabelsAsSelector returns the label selector for pods managed by this BoundedDeployment
+func getLabelsAsSelector(boundedDep *v1.BoundedDeployment) string {
+	labelMap := make(map[string]string)
+
+	// Add labels from the template
+	for k, v := range boundedDep.Spec.Template.Labels {
+		labelMap[k] = v
+	}
+
+	// Add the BoundedDeployment label
+	labelMap[BoundedDeploymentLabel] = boundedDep.Name
+
+	return labels.Set(labelMap).String()
 }
 
 // SetupWithManager sets up the controller with the Manager.

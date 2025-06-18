@@ -82,6 +82,9 @@ spec:
               replicas:
                 description: Current number of replicas
                 type: integer
+              selector:
+                description: Label selector for pods managed by this BoundedDeployment
+                type: string
               templateHash:
                 description: template hash
                 type: string

@@ -58,6 +58,9 @@ type BoundedDeploymentStatus struct {
 
 	// template hash
 	TemplateHash string `json:"templateHash,omitempty"`
+
+	// Label selector for pods managed by this BoundedDeployment
+	Selector string `json:"selector,omitempty"`
 }
 
 // +kubebuilder:object:root=true

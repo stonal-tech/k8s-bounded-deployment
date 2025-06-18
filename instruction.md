@@ -1,4 +1,4 @@
-## Add owner reference
+## 1. Add owner reference
 
 Your controller must set owner references on the pods it creates. This establishes the parent-child relationship:
 ```yaml
@@ -26,7 +26,7 @@ if err := controllerutil.SetControllerReference(boundedDep, newPod, r.Scheme); e
 }
 ```
 
-## Add CRD with status subresource
+## 2. Add CRD with status subresource
 Add a status subresource to track managed pods:
 ```yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -64,19 +64,24 @@ spec:
                 type: string
 ```
 
-## Implement Proper Status Updates
+## 3. Implement Proper Status Updates
 
 Your controller should update the status with pod information:
 
 ```go
-boundedDep.Status.Replicas = len(activePods)
-boundedDep.Status.ReadyReplicas = countNbReadyReplicas(activePods)
-boundedDep.Status.TemplateHash = templateHash
+// Update status with current pod count and selector
+status := &BoundedDeploymentStatus{
+    Replicas:      int32(len(allPods)),
+    ReadyReplicas: int32(countNbReadyReplicas(activePods)),
+    TemplateHash:  templateHash,
+    Selector:      labels.Set(boundedDeployment.Spec.Selector.MatchLabels).String(),
+}
+boundedDeployment.Status = *status
 ```
 
-## Use consistent labels and annotations
+## 4. Use consistent labels and annotations
 
-Ensure your pods have consistent labels and annotations that match your selector and controller conventions:
+Ensure your pods have consistent labels that match your selector:
 
 ```yaml
 apiVersion: v1
@@ -91,6 +96,15 @@ spec:
   # ... pod spec
 ```
 
-## Reference sample CR
+## 5. Reference sample CR
 
 See `config/samples/deploy_v1_boundeddeployment.yaml` for up-to-date examples of BoundedDeployment usage and field conventions.
+
+## 6. Test it
+```bash
+kubectl describe boundeddeployment worker-ai-docs-conductor
+```
+
+```bash
+kubectl get pods --selector="deploy.stonal.io/boundeddeployment=worker-ai-docs-conductor"
+```
