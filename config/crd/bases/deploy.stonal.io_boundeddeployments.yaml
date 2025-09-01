@@ -14,8 +14,6 @@ spec:
     shortNames:
     - bd
     singular: boundeddeployment
-    shortNames:
-      - bd
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
