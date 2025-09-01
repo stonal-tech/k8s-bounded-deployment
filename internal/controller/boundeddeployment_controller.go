@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -353,10 +352,12 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 }
 
 // getLabelsAsSelector returns the label selector for pods managed by this BoundedDeployment
-func getLabelsAsSelector(boundedDep *v1.BoundedDeployment) string {
-	return labels.Set(map[string]string{
-		BoundedDeploymentLabel: boundedDep.Name,
-	}).String()
+func getLabelsAsSelector(boundedDep *v1.BoundedDeployment) *metav1.LabelSelector {
+	return &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			BoundedDeploymentLabel: boundedDep.Name,
+		},
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
