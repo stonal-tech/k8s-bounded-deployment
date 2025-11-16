@@ -15,4 +15,4 @@ jobs:
     needs: main
     runs-on: stonal-ubuntu-22.04
     steps:
-      - uses: stonal-tech/action-ok@v0.6.0
+      - uses: stonal-tech/action-ok@v0.7.0
