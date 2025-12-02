@@ -6,7 +6,7 @@ on:
   push:
 jobs:
   lint-and-build:
-    runs-on: stonal-ubuntu-22.04
+    runs-on: stonal-ubuntu-24.04
     steps:
     - uses: actions/checkout@v6.0.0
 
