@@ -7,7 +7,7 @@ on:
 
 jobs:
   main:
-    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.42.0
+    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.43.0
     secrets: inherit
     with:
       k8s-component: "k8s-bounded-deployment" # Declare it, only if you want to deploy it
