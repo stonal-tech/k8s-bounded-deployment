@@ -8,6 +8,9 @@
     }
   },
   "enabledPlugins": {
-    "coding-standards@stonal": true
+    "code@stonal": true,
+    "platform-knowledge@stonal": true,
+    "process@stonal": true,
+    "setup@stonal": true
   }
 }
