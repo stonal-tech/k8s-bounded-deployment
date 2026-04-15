@@ -10,6 +10,7 @@
   "enabledPlugins": {
     "tech@stonal": true,
     "product@stonal": true,
-    "setup@stonal": true
+    "setup@stonal": true,
+    "process@stonal": true
   }
 }
