@@ -1,6 +1,6 @@
 version: "2"
 run:
-  concurrency: 4
+  concurrency: 8
   issues-exit-code: 1
   tests: true
 linters:
@@ -46,18 +46,17 @@ linters:
     - inamedparam
     - ineffassign
     - interfacebloat
-    - ireturn
     - lll
     - loggercheck
     - makezero
     - mirror
     - misspell
     - mnd
+    - modernize
     - musttag
     - nakedret
     - nestif
     - nilerr
-    - nilnil
     - noctx
     - nolintlint
     - nonamedreturns
@@ -94,12 +93,12 @@ linters:
           list-mode: lax
           files:
             - $all
-            - '!$test'
+            - "!$test"
           allow:
             - $gostd
           deny:
             - pkg: io/ioutil
-              desc: 'replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil'
+              desc: "replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil"
     dogsled:
       max-blank-identifiers: 2
     errcheck:
@@ -108,8 +107,10 @@ linters:
     funlen:
       lines: 80
       statements: 40
+    exhaustive:
+      default-signifies-exhaustive: true
     gocognit:
-      min-complexity: 30
+      min-complexity: 40
     goconst:
       min-len: 3
       min-occurrences: 3
@@ -122,8 +123,14 @@ linters:
         rangeValCopy:
           sizeThreshold: 32
           skipTestFuncs: true
+        hugeParam:
+          sizeThreshold: 320
     gocyclo:
       min-complexity: 15
+    gosec:
+      excludes:
+        - G101
+        - G115
     godox:
       keywords:
         - NOTE
@@ -149,14 +156,51 @@ linters:
       locale: US
       ignore-rules:
         - someword
+        - immobilier
+        - priorite
+        - hébergement
+        - cancelled
+        - conflit
+        - individuel
+        - organisation
+    nolintlint:
+      require-specific: true
+      require-used: true
+    modernize:
+      disable:
+        - newexpr
     nakedret:
       max-func-lines: 30
     prealloc:
       simple: true
       range-loops: true
       for-loops: false
+    sloglint:
+      context: "scope"
+    revive:
+      rules:
+        - name: var-naming
+          arguments:
+            - [] # AllowList
+            - [] # DenyList
+            - - skip-package-name-collision-with-go-std: true
     unparam:
       check-exported: false
+    tagliatelle:
+      case:
+        overrides:
+          - pkg: cmd/service-lpdi
+            rules:
+              json: snake
+          - pkg: cmd/worker-sftp-to-api
+            rules:
+              json: snake
+          - pkg: cmd/worker-renovate-dispatcher
+            rules:
+              json: snake
+          - pkg: cmd/service-powerbi-gateway/internal/metabase
+            rules:
+              json: kebab
     varnamelen:
       ignore-names:
         - err
@@ -173,12 +217,14 @@ linters:
     generated: lax
     rules:
       - linters:
+          - bodyclose
           - containedctx
-          - dupl
+          - err113
           - forcetypeassert
           - funlen
-          - gochecknoglobals
           - gocritic
+          - gosec
+          - gosmopolitan
           - lll
           - noctx
           - thelper
@@ -186,17 +232,45 @@ linters:
         path: _test\.go
       - linters:
           - containedctx
-          - dupl
+          - err113
           - forcetypeassert
           - funlen
-          - gochecknoglobals
           - gocritic
+          - gosec
           - lll
           - noctx
           - thelper
           - varnamelen
         path: mocks
+      - linters:
+          - contextcheck
+          - funlen
+        path: main\.go
+      - linters:
+          - dupword
+        path: repository/
+      # lll: struct field declarations with tags cannot be split
+      - linters:
+          - lll
+        source: '^\s+\w+\s+\S+\s+`'
+      # lll: SSM/secret parameter store path loading
+      - linters:
+          - lll
+        source: '\.Load\('
+      # lll: const/var string value assignments (permission names, enums, DSNs)
+      - linters:
+          - lll
+        source: '^\s+\w+\s+(\w+\s+)?=\s*"'
+      # lll: SQL query builder chains and prepared statements
+      - linters:
+          - lll
+        source: '(ColumnExpr|Join|JoinOn|JoinOnOr|On|PrepareContext)\('
+      # lll: test helper setup data
+      - linters:
+          - lll
+        path: testutils/
     paths:
+      - tools/detect-changes
       - third_party$
       - builtin$
       - examples$
