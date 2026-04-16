@@ -13,6 +13,9 @@ jobs:
       k8s-component: "k8s-bounded-deployment" # Declare it, only if you want to deploy it
   ci:
     needs: main
+    if: always()
     runs-on: stonal-ubuntu-24.04
     steps:
-      - uses: stonal-tech/action-ok@v0.8.0
+      - uses: stonal-tech/action-ok@v2.1.0
+        with:
+          needs: ${{ toJSON(needs) }}
