@@ -271,6 +271,7 @@ linters:
         path: testutils/
     paths:
       - tools/detect-changes
+      - pkg/lib-bimandco-go/tools/oapi-merge
       - third_party$
       - builtin$
       - examples$
