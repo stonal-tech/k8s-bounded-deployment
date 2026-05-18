@@ -38,10 +38,17 @@ make generate             # Generate DeepCopy methods
 ### Deployment
 ```bash
 make install              # Install CRDs to cluster
-make deploy IMG=<image>   # Deploy controller to cluster
-make diff                 # Preview deployment changes
+make deploy               # Deploy controller (image auto-resolved from current kube context)
+make diff                 # Preview deployment changes against the current kube context
 make samples              # Apply sample resources
 ```
+
+**Image resolution.** `IMG` defaults to `$(REGISTRY)/k8s-bounded-deployment:$(VERSION)`:
+- `PROVIDER` is read lazily from the `stonal-system/cluster-info` ConfigMap on the current kube context (`aws` or `s3ns`), then mapped to a registry (AWS ECR vs `registry.stonal-secnum.io`). No cluster call is made for targets that don't reference `IMG` (e.g. `make help`, `make build`).
+- `VERSION` defaults to `v0.12.0` — the tag currently deployed in `aws/nonprod` and `aws/prod`. Override (e.g. `make diff VERSION=v0.21.0`) to preview an upgrade.
+- Any of `PROVIDER`, `REGISTRY`, `VERSION`, or `IMG` can be overridden on the command line.
+
+**Kustomize image override gotcha.** `config/manager/manager.yaml` must reference the image as `controller:latest` (the kubebuilder alias). The override in `config/manager/kustomization.yaml` keys on `name: controller` — if the manifest is changed to a literal registry path, the override silently no-ops and `make deploy` pushes `:latest` regardless of `IMG`.
 
 ## Architecture
 
