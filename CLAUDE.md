@@ -40,6 +40,7 @@ make generate             # Generate DeepCopy methods
 make install              # Install CRDs to cluster
 make deploy               # Deploy controller (image auto-resolved from current kube context)
 make diff                 # Preview deployment changes against the current kube context
+make template             # Render the manifests that would be deployed (kustomize build) to stdout
 make samples              # Apply sample resources
 ```
 
