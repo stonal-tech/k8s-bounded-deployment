@@ -208,6 +208,9 @@ linters:
           - pkg: cmd/service-powerbi-gateway/internal/metabase
             rules:
               json: kebab
+          - pkg: cmd/service-db-mgmt/pkg/dbcopy
+            rules:
+              json: snake
     varnamelen:
       ignore-names:
         - err
@@ -217,6 +220,7 @@ linters:
         - t testing.T
         - i int
         - T any
+        - tx pgx.Tx
     whitespace:
       multi-if: false
       multi-func: false
