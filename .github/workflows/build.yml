@@ -20,7 +20,7 @@ jobs:
         sudo apt-get update && sudo apt-get install -y make
 
     - name: Linting
-      uses: golangci/golangci-lint-action@v9.2.0
+      uses: golangci/golangci-lint-action@v9.2.1
       with:
           # https://github.com/golangci/golangci-lint/releases
           version: v2.11.4
