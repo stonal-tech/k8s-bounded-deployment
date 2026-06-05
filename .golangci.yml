@@ -170,6 +170,7 @@ linters:
         - conflit
         - individuel
         - organisation
+        - centre
     nolintlint:
       require-specific: true
       require-used: true
@@ -261,6 +262,10 @@ linters:
       - linters:
           - dupword
         path: repository/
+      # regional_price.go is a static region -> coefficient reference table
+      - linters:
+          - mnd
+        path: pkg/domain/regional_price\.go
       # lll: struct field declarations with tags cannot be split
       - linters:
           - lll
