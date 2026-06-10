@@ -212,6 +212,9 @@ linters:
           - pkg: cmd/service-db-mgmt/pkg/dbcopy
             rules:
               json: snake
+          - pkg: cmd/worker-activity-monitor
+            rules:
+              json: snake
     varnamelen:
       ignore-names:
         - err
