@@ -292,6 +292,11 @@ linters:
     paths:
       - tools/detect-changes
       - pkg/lib-bimandco-go/tools/oapi-merge
+      # Generated code (oapi-codegen client, mockery mocks): the package doc
+      # comment precedes the "DO NOT EDIT" marker, so the generated-file
+      # heuristic misses it — exclude these generated trees by path.
+      - _generated\.go$
+      - /mocks/
       - third_party$
       - builtin$
       - examples$
@@ -308,6 +313,8 @@ formatters:
   exclusions:
     generated: lax
     paths:
+      - _generated\.go$
+      - /mocks/
       - third_party$
       - builtin$
       - examples$
