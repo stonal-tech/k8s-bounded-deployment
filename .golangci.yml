@@ -171,6 +171,7 @@ linters:
         - individuel
         - organisation
         - centre
+        - activite
     nolintlint:
       require-specific: true
       require-used: true
