@@ -1,6 +1,6 @@
 module github.com/stonal-tech/k8s-bounded-deployment
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/onsi/ginkgo/v2 v2.32.1
