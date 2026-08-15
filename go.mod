@@ -1,9 +1,9 @@
 module github.com/stonal-tech/k8s-bounded-deployment
 
-go 1.26.5
+go 1.26.6
 
 require (
-	github.com/onsi/ginkgo/v2 v2.32.0
+	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/onsi/gomega v1.42.1
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3
