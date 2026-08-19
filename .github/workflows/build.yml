@@ -6,7 +6,11 @@ on:
   push:
 jobs:
   lint-and-build:
-    runs-on: stonal-ubuntu-22.04
+    # GitHub-hosted, not stonal-ubuntu-22.04: this repository is public, and every org
+    # runner group sets allows_public_repositories=false, so self-hosted jobs queue
+    # forever. GitHub-hosted runners are free for public repositories, and exposing
+    # self-hosted runners to fork pull requests would be unsafe anyway.
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5.0.0
 
