@@ -53,8 +53,10 @@ different: it is a *minimum*, not a target. The ceiling is `spec.maxReplicas` if
 it, otherwise `spec.replicas + spec.margin`. If you set neither, there is no ceiling.
 
 When the controller does have to delete a pod for being over the ceiling, it deletes the
-newest one — the pod with the least work invested in it. That is the opposite of what a
-`ReplicaSet` would pick and it is deliberate.
+newest one — the pod with the least work invested in it, so the pods furthest through
+their work are the ones left alone. It is the only deletion heuristic here, and unlike a
+`ReplicaSet`, which reaches for it only as a tiebreaker after readiness and node spread,
+it is the whole policy.
 
 On top of the three rules, the controller collects pods that have reached `Succeeded` or
 `Failed` and deletes them. That reaping is what makes the whole thing move: a finished pod
@@ -66,8 +68,8 @@ The gap between floor and ceiling is the number of surplus pods you are willing 
 while you wait for them to finish on their own.
 
 Drop the floor from 10 to 2 with `margin: 3` and the ceiling becomes 5. The three pods
-above the ceiling are deleted right away; the remaining five are left to drain naturally
-down to 2. Set a large margin and nothing is ever force-deleted, at the cost of running
+above the ceiling are deleted one per reconcile, in quick succession; the remaining five
+are left to drain naturally down to 2. Set a large margin and nothing is ever force-deleted, at the cost of running
 surplus pods for longer. Set `margin: 0` and the resource behaves like a strict replica
 count, killing on every scale-down — which is exactly the behaviour you came here to avoid.
 

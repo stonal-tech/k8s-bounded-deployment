@@ -224,8 +224,9 @@
       </p>
       <p>
         When the controller does have to delete a pod for being over the ceiling, it deletes the newest
-        one — the pod with the least work invested in it. That is the opposite of what a ReplicaSet
-        would pick, and it is deliberate.
+        one — the pod with the least work invested in it, so the pods furthest through their work are
+        the ones left alone. It is the only deletion heuristic here, and unlike a ReplicaSet, which
+        reaches for it only as a tiebreaker after readiness and node spread, it is the whole policy.
       </p>
       <p>
         On top of the three rules, the controller collects pods that have reached <code>Succeeded</code>
