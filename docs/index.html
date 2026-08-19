@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>k8s-bounded-deployment</title>
+<meta name="description" content="A Kubernetes controller providing the BoundedDeployment custom resource: a pod count with a floor and a ceiling, where scale-down happens by letting pods finish rather than by terminating them.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f8fafc;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #475569;
+    --accent: #2563eb;
+    --accent-soft: #f4f7fc;
+    --warn-bg: #fffbeb;
+    --warn-border: #f59e0b;
+    --warn-text: #78350f;
+    --code-bg: #f8fafc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220;
+      --surface: #111c30;
+      --border: #1f2f4a;
+      --text: #e6edf7;
+      --muted: #9fb0c9;
+      --accent: #7aa7ff;
+      --accent-soft: #0e1729;
+      --warn-bg: #2a2110;
+      --warn-border: #b4801f;
+      --warn-text: #f2d9a6;
+      --code-bg: #101a2c;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.hero { border-bottom: 1px solid var(--border); background: var(--accent-soft); }
+  .hero-inner { max-width: 1180px; margin: 0 auto; padding: 44px 24px 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 10px; }
+  h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.015em; }
+  .tagline { font-size: 17px; color: var(--muted); max-width: 68ch; margin: 0 0 22px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn { display: inline-block; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { text-decoration: none; opacity: .92; }
+  .btn-ghost { background: var(--bg); color: var(--text); }
+  .btn-ghost:hover { text-decoration: none; border-color: var(--accent); }
+
+  .layout { max-width: 1180px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 216px 1fr; gap: 48px; }
+  nav.toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; padding: 36px 0; font-size: 14px; }
+  nav.toc strong { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
+  nav.toc a { display: block; padding: 5px 0 5px 12px; margin-left: -12px; color: var(--muted); border-left: 2px solid transparent; }
+  nav.toc a:hover { color: var(--accent); border-left-color: var(--accent); text-decoration: none; }
+  main { padding: 36px 0 96px; min-width: 0; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 0; } nav.toc { display: none; } }
+
+  section { scroll-margin-top: 24px; }
+  h2 { font-size: 25px; letter-spacing: -0.015em; margin: 52px 0 14px; }
+  h2:first-of-type { margin-top: 4px; }
+  h3 { font-size: 18px; margin: 30px 0 10px; }
+  p { margin: 0 0 16px; max-width: 74ch; }
+  ul { max-width: 74ch; padding-left: 22px; }
+  li { margin-bottom: 9px; }
+
+  figure { margin: 24px 0 28px; }
+  figure img { display: block; width: 100%; height: auto; background: #ffffff; border: 1px solid var(--border); border-radius: 10px; }
+  figcaption { font-size: 13.5px; color: var(--muted); margin-top: 9px; max-width: 74ch; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 15px 17px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; }
+  code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  p code, li code, td code, .tagline code { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; font-size: 13.5px; }
+
+  .table-wrap { overflow-x: auto; margin: 18px 0 24px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+  .note { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px; padding: 13px 17px; margin: 20px 0; font-size: 14.5px; color: var(--warn-text); }
+  .note p { margin: 0; max-width: none; }
+
+  footer { border-top: 1px solid var(--border); margin-top: 64px; }
+  .footer-inner { max-width: 1180px; margin: 0 auto; padding: 24px 24px 44px; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">Kubernetes controller</p>
+    <h1>k8s-bounded-deployment</h1>
+    <p class="tagline">
+      The <code>BoundedDeployment</code> custom resource: a pod count with a floor and a ceiling,
+      where scale-down happens by letting pods finish rather than by terminating them. Built for
+      workers that process a unit of work and exit — queue consumers, batch and ETL jobs,
+      importers, indexers.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#install">Install</a>
+      <a class="btn btn-ghost" href="https://github.com/stonal-tech/k8s-bounded-deployment">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <strong>On this page</strong>
+    <a href="#how">How it works</a>
+    <a href="#hpa">Compared to an HPA</a>
+    <a href="#zero">Scaling from zero</a>
+    <a href="#exit">Pods must exit</a>
+    <a href="#install">Install</a>
+    <a href="#api">API reference</a>
+    <a href="#driving">Driving it</a>
+    <a href="#adopting">Adopting a Deployment</a>
+    <a href="#operating">Operating</a>
+    <a href="#limitations">Limitations</a>
+  </nav>
+
+  <main>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <figure>
+        <img src="assets/bounded-band.svg" alt="Pod-count timeline showing a floor line, a ceiling line, and the band between them where the controller takes no action.">
+        <figcaption>One BoundedDeployment through a burst and back down again.</figcaption>
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Running pods</th><th>Controller action</th></tr></thead>
+          <tbody>
+            <tr><td>Below <code>spec.replicas</code></td><td>Create one pod per reconcile until the floor is met</td></tr>
+            <tr><td>Between floor and ceiling</td><td>None</td></tr>
+            <tr><td>Above the ceiling</td><td>Delete the newest pod, one per reconcile</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>The floor is <code>spec.replicas</code>. Unlike a <code>Deployment</code>, it is a minimum, not a target.</li>
+        <li>The ceiling is <code>spec.maxReplicas</code>, or <code>spec.replicas + spec.margin</code> when <code>maxReplicas</code> is unset. If neither is set there is no ceiling.</li>
+        <li>Pods that reach <code>Succeeded</code> or <code>Failed</code> are deleted. If that drops the count below the floor, a replacement is created.</li>
+        <li>Over the ceiling, the newest pod is deleted first — the one with the least work invested.</li>
+      </ul>
+      <p>
+        The gap between floor and ceiling is how many surplus pods you tolerate while waiting for them
+        to finish. Lowering the floor from 10 to 2 with <code>margin: 3</code> sets the ceiling to 5:
+        three pods are deleted one per reconcile, and the remaining five drain to 2 as they finish.
+        With <code>margin: 0</code> the ceiling equals the floor, so every scale-down terminates pods
+        immediately.
+      </p>
+    </section>
+
+    <section id="hpa">
+      <h2>Compared to an HPA</h2>
+      <figure>
+        <img src="assets/hpa-vs-bounded.svg" alt="Side-by-side comparison of the same scale-down event: under HPA a busy pod is cut off; under BoundedDeployment the pod runs past the event, finishes and exits 0.">
+        <figcaption>The same scale-down decision reaches two pods in two different states.</figcaption>
+      </figure>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>HPA + Deployment</th><th>BoundedDeployment</th></tr></thead>
+          <tbody>
+            <tr><td>Scale-down</td><td>Terminates pods chosen by replica count, regardless of what they are doing</td><td>Pods exit when their work is done and are not replaced</td></tr>
+            <tr><td>Scale signal</td><td>Metrics the HPA can read, usually CPU or memory</td><td>Whatever patches <code>spec.replicas</code></td></tr>
+            <tr><td>Minimum</td><td><code>minReplicas</code> is at least 1 unless the <code>HPAScaleToZero</code> feature gate is enabled</td><td><code>0</code> by default</td></tr>
+            <tr><td>Convergence</td><td>10% tolerance and a 300s scale-down stabilization window by default</td><td>Exact count, no tolerance</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        An HPA remains the better choice for stateless request handlers, where pods are
+        interchangeable and CPU tracks load.
+      </p>
+    </section>
+
+    <section id="zero">
+      <h2>Scaling from zero</h2>
+      <p>
+        <code>spec.replicas: 0</code> is the default and a valid resting state: no pods run, while the
+        resource and its template remain.
+      </p>
+      <figure>
+        <img src="assets/scale-to-zero.svg" alt="Timeline comparing a burst handled from zero by a BoundedDeployment and by an HPA.">
+        <figcaption>The BoundedDeployment idles at zero, reaches exactly eight, and returns to zero.</figcaption>
+      </figure>
+      <pre><code>kubectl patch boundeddeployment semantic-indexer -n dev \
+  --type merge -p '{"spec":{"replicas":8}}'</code></pre>
+      <p>
+        The count reaches exactly 8. The controller watches the pods it owns, so each pod creation
+        triggers the next reconcile; there is no polling interval or metrics scrape in the path.
+      </p>
+      <p>Returning to zero has two forms:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>Set</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>Drain</td><td><code>replicas: 0</code>, <code>margin: N</code></td><td>Up to <code>N</code> pods keep running until they finish</td></tr>
+            <tr><td>Stop</td><td><code>replicas: 0</code>, <code>maxReplicas: 0</code></td><td>All pods are deleted immediately</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="exit">
+      <h2>Pods must exit</h2>
+      <figure>
+        <img src="assets/pod-lifecycle.svg" alt="Pod state machine: Pending to Running, then Succeeded or Failed, both reaped by the controller, with recreation only below the floor.">
+        <figcaption>A pod is replaced only if its departure drops the count below the floor.</figcaption>
+      </figure>
+      <p>
+        A pod is expected to exit 0 when its batch is done, when the queue is empty, or after a fixed
+        lifetime. A pod that runs forever is never collected, so the count never drops and scale-down
+        never happens.
+      </p>
+      <div class="note">
+        <p>
+          The controller rewrites <code>restartPolicy: Always</code> to <code>OnFailure</code> on the
+          resource. Under <code>Always</code> the kubelet restarts a cleanly exited container, so the
+          pod never reaches <code>Succeeded</code> and the controller never sees it finish.
+        </p>
+      </div>
+    </section>
+
+    <section id="install">
+      <h2>Install</h2>
+      <p>
+        The controller is one CRD plus one deployment, installed into the
+        <code>k8s-bounded-deployment-system</code> namespace.
+      </p>
+      <pre><code>kubectl apply -f https://github.com/stonal-tech/k8s-bounded-deployment/releases/latest/download/install.yaml</code></pre>
+      <p>From source:</p>
+      <pre><code>make install                                                          # CRD only
+make deploy IMG=ghcr.io/stonal-tech/k8s-bounded-deployment:latest     # + controller</code></pre>
+      <p>
+        To use your own registry, run
+        <code>make docker-build docker-push IMG=&lt;registry&gt;/&lt;name&gt;:&lt;tag&gt;</code> and pass
+        the same <code>IMG</code> to <code>make deploy</code>. Uninstall with
+        <code>make undeploy &amp;&amp; make uninstall</code>.
+      </p>
+    </section>
+
+    <section id="api">
+      <h2>API reference</h2>
+      <pre><code>apiVersion: deploy.stonal.io/v1
+kind: BoundedDeployment
+metadata:
+  name: semantic-indexer
+spec:
+  replicas: 2      # floor
+  margin: 3        # ceiling = 5
+  template:
+    metadata:
+      labels:
+        app: semantic-indexer
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: worker
+          image: ghcr.io/example/semantic-indexer:1.4.0</code></pre>
+
+      <h3>Spec</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>replicas</code></td><td>integer</td><td>no, defaults to <code>0</code></td><td>The floor</td></tr>
+            <tr><td><code>maxReplicas</code></td><td>integer</td><td>no</td><td>Absolute ceiling. Must be at least <code>replicas</code></td></tr>
+            <tr><td><code>margin</code></td><td>integer</td><td>no</td><td>Ceiling as a distance above the floor. Ignored when <code>maxReplicas</code> is set</td></tr>
+            <tr><td><code>template</code></td><td>PodTemplateSpec</td><td>yes</td><td>The pod to run. Must declare at least one container</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Status</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>replicas</code></td><td>Pods alive and not terminating</td></tr>
+            <tr><td><code>readyReplicas</code></td><td>Of those, how many pass their readiness probe</td></tr>
+            <tr><td><code>templateHash</code></td><td>Hash of the current pod template</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>$ kubectl get bd
+
+NAME               MIN   MAX   MARGIN   CURRENT   READY
+semantic-indexer   2           3        4         4</code></pre>
+
+      <h3>Pod metadata</h3>
+      <p>
+        Pods are named <code>&lt;name&gt;-bounded-&lt;suffix&gt;</code>, labelled
+        <code>deploy.stonal.io/boundeddeployment: &lt;name&gt;</code>, and annotated with
+        <code>deploy.stonal.io/template-hash</code>. The label is how the controller finds pods, so do
+        not override it in the template. Owner references are set, so deleting the BoundedDeployment
+        deletes its pods.
+      </p>
+    </section>
+
+    <section id="driving">
+      <h2>Driving it</h2>
+      <p>The controller reconciles toward the floor; setting the floor is external to it.</p>
+      <figure>
+        <img src="assets/components.svg" alt="Integration diagram: a work source feeds a scaler, which patches spec.replicas; the controller creates, deletes and reaps worker pods, which consume from the work source.">
+        <figcaption>Blue is provided by this project. Grey is supplied by you.</figcaption>
+      </figure>
+      <p>
+        Anything that can <code>PATCH</code> a custom resource can drive it — a CronJob, an application
+        that knows its own backlog, or a queue-depth watcher.
+      </p>
+      <div class="note">
+        <p>
+          <a href="https://keda.sh">KEDA</a> drives scale targets through the <code>/scale</code>
+          subresource, which is not enabled on this CRD. See <a href="#limitations">Limitations</a>.
+        </p>
+      </div>
+    </section>
+
+    <section id="adopting">
+      <h2>Adopting an existing Deployment</h2>
+      <p>A second controller converts an annotated <code>Deployment</code>:</p>
+      <pre><code>metadata:
+  annotations:
+    stonal.io/bounded-enabled: "true"
+    stonal.io/bounded-margin: "3"     # or stonal.io/bounded-max: "10"</code></pre>
+      <p>
+        It creates a BoundedDeployment with the same name, template and replica count, then scales the
+        Deployment to zero. Either <code>bounded-margin</code> or <code>bounded-max</code> enables it;
+        <code>bounded-enabled: "false"</code> disables it. The conversion runs once — later edits to
+        the Deployment are not propagated.
+      </p>
+    </section>
+
+    <section id="operating">
+      <h2>Operating</h2>
+      <pre><code>kubectl get pods -l deploy.stonal.io/boundeddeployment=semantic-indexer
+kubectl -n k8s-bounded-deployment-system logs deploy/k8s-bounded-deployment-controller-manager -f</code></pre>
+      <p>Every create, delete and reap is logged with its reason.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Flag</th><th>Default</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>--health-probe-bind-address</code></td><td><code>:8081</code></td><td>Liveness and readiness endpoints</td></tr>
+            <tr><td><code>--metrics-bind-address</code></td><td><code>0</code> (disabled)</td><td><code>:8443</code> for HTTPS, <code>:8080</code> for HTTP</td></tr>
+            <tr><td><code>--metrics-secure</code></td><td><code>true</code></td><td>Serve metrics over HTTPS with authn/authz</td></tr>
+            <tr><td><code>--leader-elect</code></td><td><code>false</code></td><td>Leader election for HA</td></tr>
+            <tr><td><code>--enable-http2</code></td><td><code>false</code></td><td>Off by default, for the HTTP/2 Rapid Reset CVEs</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limitations">
+      <h2>Limitations</h2>
+      <ul>
+        <li><strong>No rolling update.</strong> On a template change, every pod whose hash no longer matches is deleted in the same pass, and replacements are created one per reconcile. There is no surge, no <code>maxUnavailable</code> and no PodDisruptionBudget integration.</li>
+        <li><strong>No <code>/scale</code> subresource</strong>, so <code>kubectl scale</code> and KEDA's generic scaler cannot target it. Use <code>kubectl patch</code>.</li>
+        <li><strong>The Deployment adoption controller is one-shot</strong>: it creates the BoundedDeployment and never updates it, while keeping the Deployment scaled to zero.</li>
+        <li><strong>No status conditions</strong>, so <code>kubectl wait --for=condition=...</code> has nothing to wait on.</li>
+        <li><strong>No scaling logic.</strong> There is no metrics adapter or queue integration in this repo.</li>
+        <li><strong>The test suite is largely Kubebuilder scaffolding</strong> and asserts little about the reconcile logic.</li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    Apache 2.0 · built with <a href="https://book.kubebuilder.io">Kubebuilder</a> and
+    <a href="https://github.com/kubernetes-sigs/controller-runtime">controller-runtime</a> ·
+    <a href="https://github.com/stonal-tech/k8s-bounded-deployment">stonal-tech/k8s-bounded-deployment</a>
+  </div>
+</footer>
+
+</body>
+</html>
