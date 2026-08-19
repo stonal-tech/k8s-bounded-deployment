@@ -319,7 +319,14 @@ func (r *BoundedDeploymentReconciler) deletePod(
 	pod *corev1.Pod,
 	log *slog.Logger,
 ) error {
-	log.Info("Deleting a pod", "maxReplicas", *r.calculateMaxReplicas(minDeployment))
+	// maxReplicas is nil when neither spec.maxReplicas nor spec.margin is set, which is a
+	// valid configuration: pods are then only ever removed by finishing.
+	if maxReplicas := r.calculateMaxReplicas(minDeployment); maxReplicas != nil {
+		log.Info("Deleting a pod", "podName", pod.Name, "maxReplicas", *maxReplicas)
+	} else {
+		log.Info("Deleting a pod", "podName", pod.Name)
+	}
+
 	if err := r.Delete(ctx, pod); err != nil {
 		log.Error("Failed to delete pod", "err", err)
 		return err

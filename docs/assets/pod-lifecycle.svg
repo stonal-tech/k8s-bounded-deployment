@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 340" width="900" height="340" role="img" aria-label="Pod state machine. A pod goes from Pending to Running, then either Succeeded on exit zero or Failed on a non-zero exit. Either terminal state is reaped by the controller, and a replacement is created only while the number of running pods is below spec.replicas. A note warns that restartPolicy Always is rewritten to OnFailure.">
+  <rect width="900" height="340" fill="#ffffff"/>
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+
+    <text x="40" y="32" font-size="17" font-weight="700" fill="#0f172a">A pod's life under a BoundedDeployment</text>
+
+    <rect x="40" y="110" width="130" height="58" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="105" y="145" font-size="13" fill="#334155" text-anchor="middle">Pending</text>
+
+    <rect x="230" y="110" width="130" height="58" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="295" y="145" font-size="13" font-weight="700" fill="#1e40af" text-anchor="middle">Running</text>
+
+    <rect x="420" y="60" width="170" height="52" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="1.5"/>
+    <text x="505" y="91" font-size="13" fill="#065f46" text-anchor="middle">Succeeded</text>
+
+    <rect x="420" y="166" width="170" height="52" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+    <text x="505" y="197" font-size="13" fill="#7f1d1d" text-anchor="middle">Failed</text>
+
+    <rect x="660" y="110" width="180" height="58" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="750" y="138" font-size="13" fill="#334155" text-anchor="middle">Deleted by the</text>
+    <text x="750" y="156" font-size="13" fill="#334155" text-anchor="middle">controller</text>
+
+    <g stroke="#64748b" stroke-width="1.6" fill="none" marker-end="url(#ar2)">
+      <line x1="170" y1="139" x2="224" y2="139"/>
+      <line x1="360" y1="130" x2="414" y2="95"/>
+      <line x1="360" y1="148" x2="414" y2="183"/>
+      <line x1="590" y1="93" x2="654" y2="128"/>
+      <line x1="590" y1="185" x2="654" y2="150"/>
+      <path d="M 750 168 L 750 268 L 105 268 L 105 174"/>
+    </g>
+
+    <g font-size="10.5" fill="#475569" text-anchor="middle">
+      <text x="197" y="131">scheduled</text>
+      <text x="380" y="103">exit 0</text>
+      <text x="380" y="182">exit ≠ 0</text>
+      <text x="628" y="100">reaped</text>
+      <text x="628" y="186">reaped</text>
+      <text x="427" y="261" font-size="11.5" fill="#334155">recreated only while running pods &lt; spec.replicas</text>
+    </g>
+
+    <rect x="40" y="288" width="820" height="36" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="58" y="311" font-size="11.5" fill="#78350f">restartPolicy: Always is rewritten to OnFailure — a pod that exits has to stay exited, or the controller never sees it finish.</text>
+  </g>
+</svg>

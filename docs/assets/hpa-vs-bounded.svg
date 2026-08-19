@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 380" width="900" height="380" role="img" aria-label="Two panels comparing the same scale-down event. Under HPA, pod-3 is cut off at the scale-down line and its in-flight work is lost. Under BoundedDeployment, pod-3 keeps running past the same event, finishes its batch, exits zero, and is then reaped without being replaced.">
+  <rect width="900" height="380" fill="#ffffff"/>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+
+    <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">The same scale-down decision, two outcomes</text>
+
+    <!-- ============ LEFT PANEL ============ -->
+    <rect x="30" y="60" width="405" height="300" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="52" y="88" font-size="14" font-weight="700" fill="#0f172a">HPA + Deployment</text>
+
+    <text x="270" y="112" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">HPA scales down</text>
+    <line x1="270" y1="122" x2="270" y2="286" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5 4"/>
+
+    <rect x="62" y="140" width="343" height="24" rx="4" fill="#eef2f6" stroke="#cbd5e1"/>
+    <text x="74" y="157" font-size="11.5" fill="#334155">pod-1</text>
+
+    <rect x="62" y="185" width="343" height="24" rx="4" fill="#eef2f6" stroke="#cbd5e1"/>
+    <text x="74" y="202" font-size="11.5" fill="#334155">pod-2</text>
+
+    <rect x="62" y="230" width="208" height="24" rx="4" fill="#fee2e2" stroke="#dc2626"/>
+    <text x="74" y="247" font-size="11.5" fill="#7f1d1d">pod-3</text>
+    <rect x="270" y="230" width="135" height="24" rx="4" fill="none" stroke="#dc2626" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+    <g stroke="#dc2626" stroke-width="2.6" stroke-linecap="round">
+      <line x1="264" y1="236" x2="276" y2="248"/>
+      <line x1="276" y1="236" x2="264" y2="248"/>
+    </g>
+    <text x="288" y="247" font-size="10.5" fill="#b91c1c">work never finished</text>
+
+    <line x1="52" y1="272" x2="413" y2="272" stroke="#eef2f6"/>
+    <text x="52" y="298" font-size="11.5" fill="#b91c1c">The victim is chosen by replica arithmetic, not by</text>
+    <text x="52" y="316" font-size="11.5" fill="#b91c1c">what it happens to be doing. Its in-flight work is</text>
+    <text x="52" y="334" font-size="11.5" fill="#b91c1c">lost and the message has to be redelivered.</text>
+
+    <!-- ============ RIGHT PANEL ============ -->
+    <rect x="465" y="60" width="405" height="300" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
+    <text x="487" y="88" font-size="14" font-weight="700" fill="#0f172a">BoundedDeployment</text>
+
+    <text x="705" y="112" font-size="11" font-weight="700" fill="#2563eb" text-anchor="middle">min lowered</text>
+    <line x1="705" y1="122" x2="705" y2="286" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5 4"/>
+
+    <rect x="497" y="140" width="343" height="24" rx="4" fill="#eef2f6" stroke="#cbd5e1"/>
+    <text x="509" y="157" font-size="11.5" fill="#334155">pod-1</text>
+
+    <rect x="497" y="185" width="343" height="24" rx="4" fill="#eef2f6" stroke="#cbd5e1"/>
+    <text x="509" y="202" font-size="11.5" fill="#334155">pod-2</text>
+
+    <rect x="497" y="230" width="278" height="24" rx="4" fill="#d1fae5" stroke="#059669"/>
+    <text x="509" y="247" font-size="11.5" fill="#065f46">pod-3</text>
+    <rect x="775" y="230" width="65" height="24" rx="4" fill="none" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
+    <g stroke="#059669" stroke-width="2.6" stroke-linecap="round" fill="none">
+      <polyline points="769,242 774,248 782,235"/>
+    </g>
+    <text x="788" y="247" font-size="10.5" fill="#475569">reaped</text>
+
+    <line x1="487" y1="272" x2="848" y2="272" stroke="#eef2f6"/>
+    <text x="487" y="298" font-size="11.5" fill="#065f46">pod-3 keeps working straight past the event. It</text>
+    <text x="487" y="316" font-size="11.5" fill="#065f46">finishes its batch, exits 0, and only then is it</text>
+    <text x="487" y="334" font-size="11.5" fill="#065f46">collected — and simply not replaced.</text>
+  </g>
+</svg>
