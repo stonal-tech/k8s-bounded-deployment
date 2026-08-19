@@ -10,7 +10,7 @@ jobs:
     # runner group sets allows_public_repositories=false, so self-hosted jobs queue
     # forever. GitHub-hosted runners are free for public repositories, and exposing
     # self-hosted runners to fork pull requests would be unsafe anyway.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v5.0.0
 
