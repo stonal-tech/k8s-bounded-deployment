@@ -28,9 +28,9 @@
     <text x="288" y="247" font-size="10.5" fill="#b91c1c">work never finished</text>
 
     <line x1="52" y1="272" x2="413" y2="272" stroke="#eef2f6"/>
-    <text x="52" y="298" font-size="11.5" fill="#b91c1c">The victim is chosen by replica arithmetic, not by</text>
-    <text x="52" y="316" font-size="11.5" fill="#b91c1c">what it happens to be doing. Its in-flight work is</text>
-    <text x="52" y="334" font-size="11.5" fill="#b91c1c">lost and the message has to be redelivered.</text>
+    <text x="52" y="298" font-size="11.5" fill="#b91c1c">The pod to remove is chosen by replica count, not</text>
+    <text x="52" y="316" font-size="11.5" fill="#b91c1c">by what it is doing. Its in-flight work is lost and</text>
+    <text x="52" y="334" font-size="11.5" fill="#b91c1c">the message is redelivered.</text>
 
     <!-- ============ RIGHT PANEL ============ -->
     <rect x="465" y="60" width="405" height="300" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="1.5"/>
@@ -54,8 +54,8 @@
     <text x="788" y="247" font-size="10.5" fill="#475569">reaped</text>
 
     <line x1="487" y1="272" x2="848" y2="272" stroke="#eef2f6"/>
-    <text x="487" y="298" font-size="11.5" fill="#065f46">pod-3 keeps working straight past the event. It</text>
-    <text x="487" y="316" font-size="11.5" fill="#065f46">finishes its batch, exits 0, and only then is it</text>
-    <text x="487" y="334" font-size="11.5" fill="#065f46">collected — and simply not replaced.</text>
+    <text x="487" y="298" font-size="11.5" fill="#065f46">pod-3 keeps running past the event, finishes its</text>
+    <text x="487" y="316" font-size="11.5" fill="#065f46">batch and exits 0. Only then is it collected, and</text>
+    <text x="487" y="334" font-size="11.5" fill="#065f46">it is not replaced.</text>
   </g>
 </svg>

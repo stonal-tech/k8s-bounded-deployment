@@ -8,7 +8,7 @@
   </defs>
   <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
 
-    <text x="40" y="32" font-size="17" font-weight="700" fill="#0f172a">A pod's life under a BoundedDeployment</text>
+    <text x="40" y="32" font-size="17" font-weight="700" fill="#0f172a">Pod lifecycle under a BoundedDeployment</text>
 
     <rect x="40" y="110" width="130" height="58" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
     <text x="105" y="145" font-size="13" fill="#334155" text-anchor="middle">Pending</text>

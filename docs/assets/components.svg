@@ -21,8 +21,8 @@
     <rect x="40" y="250" width="230" height="96" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
     <text x="58" y="278" font-size="13" font-weight="700" fill="#0f172a">Work source</text>
     <text x="58" y="298" font-size="11" fill="#475569">RabbitMQ, Kafka, SQS, or a</text>
-    <text x="58" y="314" font-size="11" fill="#475569">table of pending rows. The</text>
-    <text x="58" y="330" font-size="11" fill="#475569">thing that actually has depth.</text>
+    <text x="58" y="314" font-size="11" fill="#475569">table of pending rows —</text>
+    <text x="58" y="330" font-size="11" fill="#475569">whatever has a backlog.</text>
 
     <!-- BoundedDeployment CR -->
     <rect x="390" y="70" width="180" height="86" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
@@ -49,8 +49,7 @@
       <rect x="702" y="374" width="140" height="42" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
       <text x="718" y="400" font-size="11.5" fill="#334155">worker-bounded-c2</text>
     </g>
-    <text x="398" y="442" font-size="11.5" font-weight="700" fill="#065f46">Your only obligation: exit 0 when the batch is done or the</text>
-    <text x="398" y="458" font-size="11.5" font-weight="700" fill="#065f46">queue is empty. That exit is what makes scale-down safe.</text>
+    <text x="398" y="446" font-size="11.5" fill="#334155">Each pod exits 0 when its batch is done or the queue is empty.</text>
 
     <!-- arrows -->
     <g stroke="#64748b" stroke-width="1.6" fill="none" marker-end="url(#ar)">
@@ -74,6 +73,6 @@
       <text x="736" y="254">reap pods that finished</text>
     </g>
 
-    <text x="40" y="528" font-size="11" fill="#475569">Blue is what this project gives you. Grey is what you bring — and the scaling signal stays yours to choose.</text>
+    <text x="40" y="528" font-size="11" fill="#475569">Blue: provided by this project. Grey: supplied by you.</text>
   </g>
 </svg>

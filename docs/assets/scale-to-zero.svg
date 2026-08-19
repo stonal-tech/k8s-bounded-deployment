@@ -67,9 +67,9 @@
     <g font-size="11.5" fill="#334155">
       <circle cx="60" cy="368" r="9" fill="#0f172a"/>
       <text x="60" y="372" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
-      <text x="76" y="372">Idle at 0, then straight to exactly 8 as</text>
-      <text x="76" y="388">fast as pods can be created. No warm-up</text>
-      <text x="76" y="404">and no tolerance band to fight.</text>
+      <text x="76" y="372">Idle at 0, then to exactly 8 as fast as</text>
+      <text x="76" y="388">pods can be created. No warm-up and no</text>
+      <text x="76" y="404">tolerance band.</text>
 
       <circle cx="345" cy="368" r="9" fill="#0f172a"/>
       <text x="345" y="372" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
@@ -79,11 +79,11 @@
 
       <circle cx="630" cy="368" r="9" fill="#0f172a"/>
       <text x="630" y="372" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
-      <text x="646" y="372">Floor back to 0. Every step is a pod that</text>
+      <text x="646" y="372">Floor back to 0. Each step is a pod that</text>
       <text x="646" y="388">finished its work, so the count lands on</text>
-      <text x="646" y="404">exactly 0 — and stays there.</text>
+      <text x="646" y="404">exactly 0.</text>
     </g>
 
-    <text x="60" y="440" font-size="11.5" fill="#475569">An HPA cannot reach zero at all without an extra component, and its minimum is a hard floor. A BoundedDeployment idles at zero by default.</text>
+    <text x="60" y="440" font-size="11.5" fill="#475569">An HPA needs the HPAScaleToZero feature gate to reach zero; otherwise minReplicas is a hard floor of at least 1.</text>
   </g>
 </svg>

@@ -41,7 +41,7 @@
 
     <!-- hands-off band between min and max -->
     <polygon points="90,222 240,222 240,107 502.5,107 502.5,245 840,245 840,314 502.5,314 502.5,176 240,176 240,291 90,291" fill="#e0f2fe"/>
-    <text x="371" y="147" font-size="12" fill="#0369a1" text-anchor="middle">controller leaves this range alone</text>
+    <text x="371" y="147" font-size="12" fill="#0369a1" text-anchor="middle">no controller action in this range</text>
 
     <!-- min and max -->
     <polyline points="90,222 240,222 240,107 502.5,107 502.5,245 840,245" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4"/>
@@ -83,9 +83,9 @@
 
       <circle cx="630" cy="408" r="9" fill="#0f172a"/>
       <text x="630" y="412" font-size="10.5" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
-      <text x="646" y="412">Inside the band nothing is forced. Each</text>
-      <text x="646" y="428">step down is a pod that finished its work</text>
-      <text x="646" y="444">and exited on its own.</text>
+      <text x="646" y="412">Inside the band the controller takes no</text>
+      <text x="646" y="428">action. Each step down is a pod that</text>
+      <text x="646" y="444">finished its work and exited.</text>
     </g>
   </g>
 </svg>
