@@ -107,5 +107,5 @@ type BoundedDeploymentList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&BoundedDeployment{}, &BoundedDeploymentList{})
+	objectTypes = append(objectTypes, &BoundedDeployment{}, &BoundedDeploymentList{})
 }

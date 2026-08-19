@@ -1,0 +1,8 @@
+# <service-tools-connector>
+# This block is automatically managed by service-tools-connector — do not edit
+# this block or its markers (a broken marker reverts the whole file to managed mode).
+# Generated from gitops/conf/components.json.
+# To override: add rules BELOW this block — in CODEOWNERS the last matching rule
+# wins. Include @stonalbot in every override so automation keeps working.
+* @stonalbot @fclairamb
+# </service-tools-connector>

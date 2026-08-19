@@ -7,12 +7,15 @@ on:
 
 jobs:
   main:
-    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.37.0
+    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.49.0
     secrets: inherit
     with:
       k8s-component: "k8s-bounded-deployment" # Declare it, only if you want to deploy it
   ci:
     needs: main
-    runs-on: stonal-ubuntu-22.04
+    if: always()
+    runs-on: stonal-ubuntu-24.04
     steps:
-      - uses: stonal-tech/action-ok@v0.5.0
+      - uses: stonal-tech/action-ok@v2.1.0
+        with:
+          needs: ${{ toJSON(needs) }}
