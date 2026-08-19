@@ -38,7 +38,7 @@ var _ = Describe("MinDeployment Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: testNamespace, // TODO(user):Modify as needed
 		}
 		mindeployment := &deploymentv1.BoundedDeployment{}
 
@@ -49,7 +49,7 @@ var _ = Describe("MinDeployment Controller", func() {
 				resource := &deploymentv1.BoundedDeployment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
-						Namespace: "default",
+						Namespace: testNamespace,
 					},
 					// TODO(user): Specify other spec details if needed.
 				}

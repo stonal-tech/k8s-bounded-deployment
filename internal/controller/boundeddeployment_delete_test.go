@@ -15,6 +15,9 @@ import (
 	v1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
 
+// testNamespace is the namespace these tests operate in.
+const testNamespace = "default"
+
 // TestDeletePodWithoutCeiling covers the case where neither spec.maxReplicas nor
 // spec.margin is set, so there is no ceiling at all. Reaping a finished pod must still
 // work: this is the ordinary path for a worker that exits 0.
@@ -28,12 +31,12 @@ func TestDeletePodWithoutCeiling(t *testing.T) {
 	}
 
 	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "worker-bounded-abc", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "worker-bounded-abc", Namespace: testNamespace},
 		Status:     corev1.PodStatus{Phase: corev1.PodSucceeded},
 	}
 
 	boundedDep := &v1.BoundedDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: testNamespace},
 		Spec:       v1.BoundedDeploymentSpec{Replicas: 1},
 	}
 
