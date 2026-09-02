@@ -174,7 +174,8 @@ linters:
         - activite
     nolintlint:
       require-specific: true
-      require-used: true
+      # unused //nolint directives are reported by default (allow-unused: false);
+      # the v1-era "require-used" key does not exist in v2 and fails `config verify`.
     modernize:
       disable:
         - newexpr
