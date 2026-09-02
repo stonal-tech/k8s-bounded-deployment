@@ -18,9 +18,11 @@ package controller
 
 import (
 	"context"
+	"log/slog"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -51,7 +53,18 @@ var _ = Describe("MinDeployment Controller", func() {
 						Name:      resourceName,
 						Namespace: testNamespace,
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: deploymentv1.BoundedDeploymentSpec{
+						Replicas: 1,
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								RestartPolicy: corev1.RestartPolicyOnFailure,
+								Containers: []corev1.Container{{
+									Name:  "busybox",
+									Image: "busybox:1.37",
+								}},
+							},
+						},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -68,9 +81,11 @@ var _ = Describe("MinDeployment Controller", func() {
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
+			// Log is normally populated by SetupWithManager, which this test bypasses.
 			controllerReconciler := &BoundedDeploymentReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Log:    slog.Default(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
