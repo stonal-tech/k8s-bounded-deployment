@@ -1,13 +1,12 @@
 # Image URL to use all building/pushing image targets.
-# PROVIDER is read from the current kube context's `stonal-system/cluster-info`
-# ConfigMap (data.provider → `aws` or `s3ns`) and maps to the matching registry.
-# Override any of PROVIDER / REGISTRY / VERSION / IMG on the command line.
-# VERSION defaults to the tag currently deployed in aws/nonprod and aws/prod (latest released tag is v0.21.0).
-REGISTRY_aws  := 983974232060.dkr.ecr.eu-west-3.amazonaws.com
-REGISTRY_s3ns := registry.stonal-secnum.io
-PROVIDER ?= $(shell $(KUBECTL) -n stonal-system get cm cluster-info -o jsonpath='{.data.provider}' 2>/dev/null)
-REGISTRY ?= $(REGISTRY_$(PROVIDER))
-VERSION  ?= v0.12.0
+# Images are published to GHCR by .github/workflows/release.yml on `v*` tags, and every
+# cluster (AWS and s3ns alike) pulls from there — there is no longer a per-provider
+# ECR / registry.stonal-secnum.io split, so no cluster call is needed to resolve IMG.
+# Override REGISTRY / VERSION / IMG on the command line.
+# VERSION carries no leading `v`: docker/metadata-action publishes the semver tag as
+# `0.23.0`, so `v0.23.0` does not exist on GHCR.
+REGISTRY ?= ghcr.io/stonal-tech
+VERSION  ?= 0.23.0
 IMG      ?= $(REGISTRY)/k8s-bounded-deployment:$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.35.0
