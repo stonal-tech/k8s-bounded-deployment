@@ -1,21 +1,83 @@
-# This workflow doesn't respect the stonal conventions as we intend to
-# open-source this project.
-name: Build container
+# This workflow doesn't respect the stonal conventions as we intend to open-source this
+# project — it deliberately uses no private Stonal action or reusable workflow.
+#
+# Two constraints drive that, both consequences of this repository being public:
+#   * reusable workflows and actions living in private stonal-tech repositories cannot be
+#     resolved from a public repository, and an unresolvable `uses:` fails the whole run at
+#     startup — before any job exists, so no status check is ever reported;
+#   * every org runner group sets allows_public_repositories=false, so a job pinned to
+#     `stonal-ubuntu-24.04` would queue forever. GitHub-hosted runners are free for public
+#     repositories, and exposing self-hosted runners to fork pull requests would be unsafe.
+#
+# The final `ci` job is the aggregate the org branch ruleset requires on `main`; keep its
+# name in sync with that ruleset.
+name: CI
 
+# `push` is limited to main so that a branch push and its pull request don't each burn a
+# full run; branch coverage comes from the pull_request event.
 on:
   push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  main:
-    uses: stonal-tech/workflow-container-build/.github/workflows/ci.yml@v1.51.0
-    secrets: inherit
-    with:
-      k8s-component: "k8s-bounded-deployment" # Declare it, only if you want to deploy it
-  ci:
-    needs: main
-    if: always()
-    runs-on: stonal-ubuntu-24.04
+  lint:
+    runs-on: ubuntu-24.04
     steps:
-      - uses: stonal-tech/action-ok@v2.1.0
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@v7.0.0
         with:
-          needs: ${{ toJSON(needs) }}
+          go-version-file: go.mod
+
+      # Not `make lint`: the Makefile still pins GOLANGCI_LINT_VERSION to v1.59.1, which
+      # cannot read the `version: "2"` .golangci.yml this repository uses.
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          # https://github.com/golangci/golangci-lint/releases
+          version: v2.13.1
+          args: -v --timeout=20m
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # `make test` downloads its own envtest control-plane binaries and skips ./test/e2e,
+      # which needs a Kind cluster.
+      - name: Run tests
+        run: make test
+
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Build project
+        run: make build
+
+  ci:
+    # Aggregate gate: one stable check name for the branch ruleset, so adding or renaming a
+    # job above never requires touching the org ruleset.
+    needs: [lint, test, build]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fail if any needed job did not succeed
+        run: |
+          echo '${{ toJSON(needs) }}'
+          [ "$(jq -r '[.[] | .result] | unique | join(",")' <<< '${{ toJSON(needs) }}')" = "success" ]
