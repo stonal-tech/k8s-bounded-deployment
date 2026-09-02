@@ -62,6 +62,12 @@ type BoundedDeploymentStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=bd
+// +kubebuilder:printcolumn:name="Min",type=integer,JSONPath=`.spec.replicas`
+// +kubebuilder:printcolumn:name="Max",type=integer,JSONPath=`.spec.maxReplicas`
+// +kubebuilder:printcolumn:name="Margin",type=integer,JSONPath=`.spec.margin`
+// +kubebuilder:printcolumn:name="Current",type=integer,JSONPath=`.status.replicas`
+// +kubebuilder:printcolumn:name="Ready",type=integer,JSONPath=`.status.readyReplicas`
 
 // BoundedDeployment is the Schema for the boundeddeployments API
 type BoundedDeployment struct {
@@ -72,9 +78,9 @@ type BoundedDeployment struct {
 	Status BoundedDeploymentStatus `json:"status,omitempty"`
 }
 
-var ErrInvalidMinMaxReplicas = errors.New("Invalid min/max replicas")
+var ErrInvalidMinMaxReplicas = errors.New("invalid min/max replicas")
 
-var ErrInvalidTemplate = errors.New("Invalid template")
+var ErrInvalidTemplate = errors.New("invalid template")
 
 // Check validates the MinDeployment.
 func (m *BoundedDeployment) Check() error {
@@ -101,5 +107,5 @@ type BoundedDeploymentList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&BoundedDeployment{}, &BoundedDeploymentList{})
+	objectTypes = append(objectTypes, &BoundedDeployment{}, &BoundedDeploymentList{})
 }

@@ -1,7 +1,16 @@
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+# Image URL to use all building/pushing image targets.
+# PROVIDER is read from the current kube context's `stonal-system/cluster-info`
+# ConfigMap (data.provider → `aws` or `s3ns`) and maps to the matching registry.
+# Override any of PROVIDER / REGISTRY / VERSION / IMG on the command line.
+# VERSION defaults to the tag currently deployed in aws/nonprod and aws/prod (latest released tag is v0.21.0).
+REGISTRY_aws  := 983974232060.dkr.ecr.eu-west-3.amazonaws.com
+REGISTRY_s3ns := registry.stonal-secnum.io
+PROVIDER ?= $(shell $(KUBECTL) -n stonal-system get cm cluster-info -o jsonpath='{.data.provider}' 2>/dev/null)
+REGISTRY ?= $(REGISTRY_$(PROVIDER))
+VERSION  ?= v0.12.0
+IMG      ?= $(REGISTRY)/k8s-bounded-deployment:$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.31.0
+ENVTEST_K8S_VERSION = 1.35.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -134,6 +143,16 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
+.PHONY: template
+template: manifests kustomize ## Render the Kubernetes manifests that would be deployed (kustomize build) to stdout.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default
+
+.PHONY: diff
+diff: manifests kustomize ## Diff rendered manifests against the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | $(KUBECTL) diff -f -
+
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
@@ -159,7 +178,7 @@ GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.3
-CONTROLLER_TOOLS_VERSION ?= v0.16.1
+CONTROLLER_TOOLS_VERSION ?= v0.19.0
 ENVTEST_VERSION ?= release-0.19
 GOLANGCI_LINT_VERSION ?= v1.59.1
 

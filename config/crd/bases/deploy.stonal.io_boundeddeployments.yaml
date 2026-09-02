@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.19.0
   name: boundeddeployments.deploy.stonal.io
 spec:
   group: deploy.stonal.io
@@ -11,10 +11,28 @@ spec:
     kind: BoundedDeployment
     listKind: BoundedDeploymentList
     plural: boundeddeployments
+    shortNames:
+    - bd
     singular: boundeddeployment
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.replicas
+      name: Min
+      type: integer
+    - jsonPath: .spec.maxReplicas
+      name: Max
+      type: integer
+    - jsonPath: .spec.margin
+      name: Margin
+      type: integer
+    - jsonPath: .status.replicas
+      name: Current
+      type: integer
+    - jsonPath: .status.readyReplicas
+      name: Ready
+      type: integer
+    name: v1
     schema:
       openAPIV3Schema:
         description: BoundedDeployment is the Schema for the boundeddeployments API

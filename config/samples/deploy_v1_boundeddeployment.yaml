@@ -1,51 +1,58 @@
+# A worker fleet with a floor of 2 and a ceiling of 5 (replicas + margin).
+#
+# Each pod does a unit of work and exits 0. The controller collects finished pods and
+# creates replacements only while fewer than `replicas` are running, so lowering
+# `replicas` drains the fleet instead of killing pods mid-task.
 apiVersion: deploy.stonal.io/v1
 kind: BoundedDeployment
 metadata:
-  name: nginx-boundeddeployment
+  name: sample-worker
 spec:
-  replicas: 0
-  maxReplicas: 5  # Optional
+  replicas: 2
+  margin: 3 # ceiling = replicas + margin = 5. Use maxReplicas for an absolute ceiling.
   template:
     metadata:
       labels:
-        app: my-app
+        app: sample-worker
     spec:
+      restartPolicy: OnFailure # Always is rewritten to OnFailure by the controller
       containers:
-        - name: my-container
-          image: nginx:latest
-          ports:
-            - containerPort: 80
-
+        - name: worker
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - 'echo "processing a batch"; sleep 30; echo "batch done"; exit 0'
 ---
-# Standard nginx deployment
+# Adopting an existing Deployment.
+#
+# The Deployment controller sees the annotations, creates a BoundedDeployment with the
+# same name, template and replica count, and then scales this Deployment to zero. Note
+# that a Deployment template must use restartPolicy: Always; the BoundedDeployment
+# controller rewrites it to OnFailure on the resource it creates.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: sample-adopted
   labels:
-    app: my-app2
-  name: nginx-deployment
+    app: sample-adopted
+  annotations:
+    stonal.io/bounded-enabled: "true"
+    stonal.io/bounded-margin: "3" # or stonal.io/bounded-max: "10"
 spec:
-  replicas: 0
+  replicas: 2
   selector:
     matchLabels:
-      app: my-app2
+      app: sample-adopted
   template:
     metadata:
       labels:
-        app: my-app2
+        app: sample-adopted
     spec:
       containers:
-        - name: nginx
-          image: nginx:latest
-          ports:
-            - containerPort: 80
----
-# BoundedDeployment based on the standard nginx deployment
-apiVersion: deploy.stonal.io/v1
-kind: BoundedDeployment
-metadata:
-  name: nginx-deployment-boundeddeployment
-spec:
-  sourceDeploymentName: nginx-deployment
-  replicas: 0
-  maxReplicas: 10
+        - name: worker
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - 'echo "processing a batch"; sleep 30; echo "batch done"; exit 0'

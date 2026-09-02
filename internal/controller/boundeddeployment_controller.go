@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	deploymentv1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 	v1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
 
@@ -283,14 +282,21 @@ func (r *BoundedDeploymentReconciler) createPod(
 	// Add the BoundedDeployment label
 	labels[BoundedDeploymentLabel] = boundedDep.Name
 
+	// Create a copy of annotations from the template
+	annotations := make(map[string]string)
+	for k, v := range boundedDep.Spec.Template.Annotations {
+		annotations[k] = v
+	}
+
+	// Add the template hash annotation
+	annotations[PodTemplateHashAnnotation] = templateHash
+
 	newPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: boundedDep.Name + "-bounded-",
 			Namespace:    boundedDep.Namespace,
 			Labels:       labels,
-			Annotations: map[string]string{
-				PodTemplateHashAnnotation: templateHash,
-			},
+			Annotations:  annotations,
 		},
 		Spec: boundedDep.Spec.Template.Spec,
 	}
@@ -313,7 +319,14 @@ func (r *BoundedDeploymentReconciler) deletePod(
 	pod *corev1.Pod,
 	log *slog.Logger,
 ) error {
-	log.Info("Deleting a pod", "maxReplicas", *r.calculateMaxReplicas(minDeployment))
+	// maxReplicas is nil when neither spec.maxReplicas nor spec.margin is set, which is a
+	// valid configuration: pods are then only ever removed by finishing.
+	if maxReplicas := r.calculateMaxReplicas(minDeployment); maxReplicas != nil {
+		log.Info("Deleting a pod", "podName", pod.Name, "maxReplicas", *maxReplicas)
+	} else {
+		log.Info("Deleting a pod", "podName", pod.Name)
+	}
+
 	if err := r.Delete(ctx, pod); err != nil {
 		log.Error("Failed to delete pod", "err", err)
 		return err
@@ -345,7 +358,7 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 func (r *BoundedDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.init()
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deploymentv1.BoundedDeployment{}).
+		For(&v1.BoundedDeployment{}).
 		Owns(&corev1.Pod{}).
 		Complete(r)
 }
