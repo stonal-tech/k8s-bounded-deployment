@@ -18,14 +18,14 @@ package controller
 
 import (
 	"context"
+	"log/slog"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	deploymentv1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
@@ -47,11 +47,19 @@ var _ = Describe("MinDeployment Controller", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, mindeployment)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &deploymentv1.BoundedDeployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: testNamespace,
+					Name:      resourceName,
+					Namespace: testNamespace,
+					Spec: deploymentv1.BoundedDeploymentSpec{
+						Replicas: 0,
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								RestartPolicy: corev1.RestartPolicyOnFailure,
+								Containers: []corev1.Container{
+									{Name: "worker", Image: "busybox"},
+								},
+							},
+						},
 					},
-					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -70,6 +78,7 @@ var _ = Describe("MinDeployment Controller", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &BoundedDeploymentReconciler{
 				Client: k8sClient,
+				Log:    slog.Default(),
 				Scheme: k8sClient.Scheme(),
 			}
 
