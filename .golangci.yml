@@ -241,9 +241,11 @@ linters:
           - goconst
           - gocritic
           - gosec
+          - godox
           - gosmopolitan
           - lll
           - noctx
+          - paralleltest
           - thelper
           - varnamelen
         path: _test\.go
@@ -290,6 +292,19 @@ linters:
       - linters:
           - lll
         path: testutils/
+      # kubebuilder scaffolding: the scheme is registered from init() by design
+      - linters:
+          - gochecknoinits
+        path: (^api/|main\.go)
+      # kubebuilder marker comments (+kubebuilder:rbac, printcolumn...) cannot be wrapped
+      - linters:
+          - lll
+        source: '^\s*//\s*\+kubebuilder:'
+      # test/ holds the e2e harness: it shells out to make/kubectl/kind on purpose
+      - linters:
+          - gosec
+          - noctx
+        path: ^test/
     paths:
       - tools/detect-changes
       - pkg/lib-bimandco-go/tools/oapi-merge

@@ -21,6 +21,7 @@ import (
 	"flag"
 	"net/http"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -40,6 +41,10 @@ import (
 	"github.com/stonal-tech/k8s-bounded-deployment/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
+
+// healthServerReadHeaderTimeout bounds how long the custom health-check server
+// waits for request headers, so it cannot be held open by a slow client.
+const healthServerReadHeaderTimeout = 10 * time.Second
 
 var (
 	scheme   = runtime.NewScheme()
@@ -181,8 +186,12 @@ func main() {
 	})
 
 	// Start the HTTP server for the custom health check
+	healthServer := &http.Server{
+		Addr:              ":8080",
+		ReadHeaderTimeout: healthServerReadHeaderTimeout,
+	}
 	go func() {
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		if err := healthServer.ListenAndServe(); err != nil {
 			setupLog.Error(err, "unable to start health check server")
 			os.Exit(1)
 		}
