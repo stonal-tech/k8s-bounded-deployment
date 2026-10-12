@@ -45,9 +45,11 @@ make samples              # Apply sample resources
 ```
 
 **Image resolution.** `IMG` defaults to `$(REGISTRY)/k8s-bounded-deployment:$(VERSION)`:
-- `PROVIDER` is read lazily from the `stonal-system/cluster-info` ConfigMap on the current kube context (`aws` or `s3ns`), then mapped to a registry (AWS ECR vs `registry.stonal-secnum.io`). No cluster call is made for targets that don't reference `IMG` (e.g. `make help`, `make build`).
-- `VERSION` defaults to `v0.12.0` — the tag currently deployed in `aws/nonprod` and `aws/prod`. Override (e.g. `make diff VERSION=v0.21.0`) to preview an upgrade.
+- Images are only published to `ghcr.io/stonal-tech/k8s-bounded-deployment`, by `.github/workflows/release.yml` on each `v*` tag. The clusters do not pull `ghcr.io` directly (the package is not public): they go through the `ghcr` pull-through cache of ECR, which holds its own GHCR credentials and copies a tag on its first pull.
+- `PROVIDER` is read lazily from the `stonal-system/cluster-info` ConfigMap on the current kube context (`aws` or `s3ns`), then mapped to a registry: `983974232060.dkr.ecr.eu-west-3.amazonaws.com/ghcr/stonal-tech` or `registry.stonal-secnum.io/ghcr/stonal-tech` (which relays ECR). No cluster call is made for targets that don't reference `IMG` (e.g. `make help`, `make build`).
+- `VERSION` defaults to `0.23.0`. **No leading `v`**: `docker/metadata-action`'s `{{version}}` pattern strips it, so GHCR holds `0.23.0`, `0.23` and `latest`; `v0.23.0` does not exist. Override (e.g. `make diff VERSION=0.24.0`) to preview an upgrade.
 - Any of `PROVIDER`, `REGISTRY`, `VERSION`, or `IMG` can be overridden on the command line.
+- Stonal's clusters are deployed from [k8s-cluster-essentials](https://github.com/stonal-tech/k8s-cluster-essentials/tree/main/k8s-bounded-deployment), which renders `config/default` of a checkout of the release tag. `make deploy` here is for development clusters.
 
 **Kustomize image override gotcha.** `config/manager/manager.yaml` must reference the image as `controller:latest` (the kubebuilder alias). The override in `config/manager/kustomization.yaml` keys on `name: controller` — if the manifest is changed to a literal registry path, the override silently no-ops and `make deploy` pushes `:latest` regardless of `IMG`.
 
