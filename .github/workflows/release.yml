@@ -1,8 +1,8 @@
 # Publishes the public artifacts for a tagged release: a multi-arch image on GHCR and a
 # ready-to-apply install.yaml attached to the GitHub release.
 #
-# Stonal's internal ECR build lives in ci.yml and is untouched by this workflow. This one
-# exists so that people outside the organisation can install the controller.
+# This is the only place controller images are published. Stonal's clusters pull this
+# GHCR image through the "ghcr" pull-through cache of ECR (see REGISTRY_* in the Makefile).
 name: Publish release artifacts
 
 on:
@@ -56,9 +56,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       # A single manifest carrying the CRD, RBAC and the controller deployment, with the
-      # image pinned to the tag being released.
+      # image pinned to the tag being released. steps.meta.outputs.version is the tag
+      # actually pushed (0.23.0): the {{version}} pattern strips the "v" of github.ref_name.
       - name: Generate install.yaml
-        run: make build-installer IMG=ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+        run: make build-installer IMG=ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
 
       - name: Attach install.yaml to the release
         if: startsWith(github.ref, 'refs/tags/v')
