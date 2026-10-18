@@ -27,8 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	deploymentv1 "github.com/stonal-tech/k8s-bounded-deployment/api/v1"
 )
 
@@ -49,19 +47,16 @@ var _ = Describe("MinDeployment Controller", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, mindeployment)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &deploymentv1.BoundedDeployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: testNamespace,
-					},
+					Name:      resourceName,
+					Namespace: testNamespace,
 					Spec: deploymentv1.BoundedDeploymentSpec{
-						Replicas: 1,
+						Replicas: 0,
 						Template: corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								RestartPolicy: corev1.RestartPolicyOnFailure,
-								Containers: []corev1.Container{{
-									Name:  "busybox",
-									Image: "busybox:1.37",
-								}},
+								Containers: []corev1.Container{
+									{Name: "worker", Image: "busybox"},
+								},
 							},
 						},
 					},
@@ -81,11 +76,10 @@ var _ = Describe("MinDeployment Controller", func() {
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			// Log is normally populated by SetupWithManager, which this test bypasses.
 			controllerReconciler := &BoundedDeploymentReconciler{
 				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
 				Log:    slog.Default(),
+				Scheme: k8sClient.Scheme(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

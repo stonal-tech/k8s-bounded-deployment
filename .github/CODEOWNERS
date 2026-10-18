@@ -4,5 +4,5 @@
 # Generated from gitops/conf/components.json.
 # To override: add rules BELOW this block — in CODEOWNERS the last matching rule
 # wins. Include @stonalbot in every override so automation keeps working.
-* @stonalbot @fclairamb
+* @stonalbot @fclairamb @clevandowski
 # </service-tools-connector>

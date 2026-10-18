@@ -35,7 +35,7 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: BoundedDeployment is the Schema for the boundeddeployments API
+        description: BoundedDeployment is the Schema for the boundeddeployments API.
         properties:
           apiVersion:
             description: |-
@@ -55,7 +55,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: BoundedDeploymentSpec defines the desired state of BoundedDeployment
+            description: BoundedDeploymentSpec defines the desired state of BoundedDeployment.
             properties:
               margin:
                 description: Margin between min & max
@@ -72,7 +72,7 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
             type: object
           status:
-            description: BoundedDeploymentStatus defines the observed state of BoundedDeployment
+            description: BoundedDeploymentStatus defines the observed state of BoundedDeployment.
             properties:
               readyReplicas:
                 description: Current number of ready replicas

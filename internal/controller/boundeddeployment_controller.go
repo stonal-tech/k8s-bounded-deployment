@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,13 +25,13 @@ const PodTemplateHashAnnotation = "deploy.stonal.io/template-hash"
 const BoundedDeploymentLabel = "deploy.stonal.io/boundeddeployment"
 
 // generatePodTemplateHash generates a hash for a given pod template spec.
-func generatePodTemplateHash(template corev1.PodTemplateSpec) string {
+func generatePodTemplateHash(template *corev1.PodTemplateSpec) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(template.Spec.String()))
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-// BoundedDeploymentReconciler reconciles a BoundedDeployment object
+// BoundedDeploymentReconciler reconciles a BoundedDeployment object.
 type BoundedDeploymentReconciler struct {
 	client.Client
 	Log    *slog.Logger
@@ -50,16 +50,16 @@ func (r *BoundedDeploymentReconciler) checkBoundedDeployment(
 	log *slog.Logger,
 ) error {
 	if err := boundedDep.Check(); err != nil {
-		log.Error("Invalid BoundedDeployment", "error", err)
+		log.ErrorContext(ctx, "Invalid BoundedDeployment", "error", err)
 		return err
 	}
 
 	if boundedDep.Spec.Template.Spec.RestartPolicy == corev1.RestartPolicyAlways {
-		log.Warn("RestartPolicy is Always, patching it to OnFailure")
+		log.WarnContext(ctx, "RestartPolicy is Always, patching it to OnFailure")
 		boundedDep.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 
 		if err := r.Update(ctx, boundedDep); err != nil {
-			log.Error("Failed to patch RestartPolicy", "error", err)
+			log.ErrorContext(ctx, "Failed to patch RestartPolicy", "error", err)
 			return err
 		}
 
@@ -71,13 +71,16 @@ func (r *BoundedDeploymentReconciler) checkBoundedDeployment(
 
 func countNbReadyReplicas(pods []corev1.Pod) int {
 	readyReplicas := 0
-	for _, pod := range pods {
-		if pod.Status.Phase == corev1.PodRunning {
-			for _, condition := range pod.Status.Conditions {
-				if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
-					readyReplicas++
-					break
-				}
+	for i := range pods {
+		pod := &pods[i]
+		if pod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+		for j := range pod.Status.Conditions {
+			condition := &pod.Status.Conditions[j]
+			if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+				readyReplicas++
+				break
 			}
 		}
 	}
@@ -91,7 +94,7 @@ func countNbReadyReplicas(pods []corev1.Pod) int {
 
 func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.With("namespace", req.Namespace, "name", req.Name)
-	log.Debug("Reconciling BoundedDeployment")
+	log.DebugContext(ctx, "Reconciling BoundedDeployment")
 
 	boundedDep, err := r.getBoundedDeployment(ctx, req.NamespacedName, log)
 	if err != nil {
@@ -100,11 +103,11 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	boundedBefore := boundedDep.DeepCopy()
 
-	if err := r.checkBoundedDeployment(ctx, boundedDep, log); err != nil {
-		return ctrl.Result{}, err
+	if checkErr := r.checkBoundedDeployment(ctx, boundedDep, log); checkErr != nil {
+		return ctrl.Result{}, checkErr
 	}
 
-	templateHash := generatePodTemplateHash(boundedDep.Spec.Template)
+	templateHash := generatePodTemplateHash(&boundedDep.Spec.Template)
 
 	activePods, err := r.getActivePods(ctx, boundedDep, req.Namespace, log)
 	if err != nil {
@@ -120,7 +123,7 @@ func (r *BoundedDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	boundedDep.Status.TemplateHash = templateHash
 
 	if boundedBefore.Status != boundedDep.Status {
-		log.Info("Status updated", "status", boundedDep.Status)
+		log.InfoContext(ctx, "Status updated", "status", boundedDep.Status)
 
 		if err := r.updateStatus(ctx, boundedBefore, boundedDep, log); err != nil {
 			return ctrl.Result{}, err
@@ -138,10 +141,10 @@ func (r *BoundedDeploymentReconciler) getBoundedDeployment(
 	boundeDeployment := &v1.BoundedDeployment{}
 	if err := r.Get(ctx, namespacedName, boundeDeployment); err != nil {
 		if k8serrors.IsNotFound(err) {
-			log.Info("BoundedDeployment not found. Ignoring since it must have been deleted")
+			log.InfoContext(ctx, "BoundedDeployment not found. Ignoring since it must have been deleted")
 			return nil, nil
 		}
-		log.Error("Failed to get BoundedDeployment", "error", err)
+		log.ErrorContext(ctx, "Failed to get BoundedDeployment", "error", err)
 		return nil, err
 	}
 
@@ -162,14 +165,14 @@ func (r *BoundedDeploymentReconciler) getActivePods(
 		}),
 	}
 	if err := r.List(ctx, podList, listOpts...); err != nil {
-		log.Error("Failed to list pods", "err", err)
+		log.ErrorContext(ctx, "Failed to list pods", "err", err)
 		return nil, err
 	}
 
 	activePods := make([]corev1.Pod, 0, len(podList.Items))
-	for _, pod := range podList.Items {
-		if pod.DeletionTimestamp == nil {
-			activePods = append(activePods, pod)
+	for i := range podList.Items {
+		if podList.Items[i].DeletionTimestamp == nil {
+			activePods = append(activePods, podList.Items[i])
 		}
 	}
 
@@ -191,7 +194,7 @@ func (r *BoundedDeploymentReconciler) reconcilePods(
 	for i := range activePods {
 		pod := &activePods[i]
 		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-			log.Info(
+			log.InfoContext(ctx,
 				"Deleting pod",
 				"podName", pod.Name,
 				"podStatusPhase", pod.Status.Phase,
@@ -219,7 +222,7 @@ func (r *BoundedDeploymentReconciler) reconcilePods(
 		return r.deletePod(ctx, boundedDep, &activePods[0], log)
 	}
 
-	log.Debug("No action required")
+	log.DebugContext(ctx, "No action required")
 	return nil
 }
 
@@ -229,20 +232,21 @@ func (r *BoundedDeploymentReconciler) deleteMismatchedPods(
 	templateHash string,
 	log *slog.Logger,
 ) error {
-	for _, pod := range activePods {
+	for i := range activePods {
+		pod := &activePods[i]
 		podHash := pod.Annotations[PodTemplateHashAnnotation]
 		if podHash == "" {
-			log.Warn("Pod has no hash annotation, this probably means it's not a BoundedDeployment pod")
+			log.WarnContext(ctx, "Pod has no hash annotation, this probably means it's not a BoundedDeployment pod")
 			continue
 		}
 		if podHash != templateHash {
-			log.Info(
+			log.InfoContext(ctx,
 				"Deleting pod due to hash mismatch",
 				"pod", pod.Name,
 				"podHash", podHash,
 			)
-			if err := r.Delete(ctx, &pod); err != nil {
-				log.Error("Failed to delete pod", "err", err)
+			if err := r.Delete(ctx, pod); err != nil {
+				log.ErrorContext(ctx, "Failed to delete pod", "err", err)
 				return err
 			}
 		}
@@ -267,7 +271,7 @@ func (r *BoundedDeploymentReconciler) createPod(
 	templateHash string,
 	log *slog.Logger,
 ) error {
-	log.Info(
+	log.InfoContext(ctx,
 		"Creating pod",
 		"minReplicas", boundedDep.Spec.Replicas,
 		"currentReplicas", boundedDep.Status.Replicas,
@@ -275,39 +279,33 @@ func (r *BoundedDeploymentReconciler) createPod(
 
 	// Create a copy of labels from the template
 	labels := make(map[string]string)
-	for k, v := range boundedDep.Spec.Template.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, boundedDep.Spec.Template.Labels)
 
 	// Add the BoundedDeployment label
 	labels[BoundedDeploymentLabel] = boundedDep.Name
 
 	// Create a copy of annotations from the template
 	annotations := make(map[string]string)
-	for k, v := range boundedDep.Spec.Template.Annotations {
-		annotations[k] = v
-	}
+	maps.Copy(annotations, boundedDep.Spec.Template.Annotations)
 
 	// Add the template hash annotation
 	annotations[PodTemplateHashAnnotation] = templateHash
 
 	newPod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: boundedDep.Name + "-bounded-",
-			Namespace:    boundedDep.Namespace,
-			Labels:       labels,
-			Annotations:  annotations,
-		},
-		Spec: boundedDep.Spec.Template.Spec,
+		GenerateName: boundedDep.Name + "-bounded-",
+		Namespace:    boundedDep.Namespace,
+		Labels:       labels,
+		Annotations:  annotations,
+		Spec:         boundedDep.Spec.Template.Spec,
 	}
 
 	if err := controllerutil.SetControllerReference(boundedDep, newPod, r.Scheme); err != nil {
-		log.Error("Failed to set controller reference", "err", err)
+		log.ErrorContext(ctx, "Failed to set controller reference", "err", err)
 		return err
 	}
 
 	if err := r.Create(ctx, newPod); err != nil {
-		log.Error("Failed to create new pod", "err", err)
+		log.ErrorContext(ctx, "Failed to create new pod", "err", err)
 		return err
 	}
 	return nil
@@ -322,13 +320,13 @@ func (r *BoundedDeploymentReconciler) deletePod(
 	// maxReplicas is nil when neither spec.maxReplicas nor spec.margin is set, which is a
 	// valid configuration: pods are then only ever removed by finishing.
 	if maxReplicas := r.calculateMaxReplicas(minDeployment); maxReplicas != nil {
-		log.Info("Deleting a pod", "podName", pod.Name, "maxReplicas", *maxReplicas)
+		log.InfoContext(ctx, "Deleting a pod", "podName", pod.Name, "maxReplicas", *maxReplicas)
 	} else {
-		log.Info("Deleting a pod", "podName", pod.Name)
+		log.InfoContext(ctx, "Deleting a pod", "podName", pod.Name)
 	}
 
 	if err := r.Delete(ctx, pod); err != nil {
-		log.Error("Failed to delete pod", "err", err)
+		log.ErrorContext(ctx, "Failed to delete pod", "err", err)
 		return err
 	}
 	return nil
@@ -343,11 +341,11 @@ func (r *BoundedDeploymentReconciler) updateStatus(
 	statusPatch := client.MergeFrom(boundedBefore)
 	if err := r.Status().Patch(ctx, boundedDep, statusPatch); err != nil {
 		if k8serrors.IsConflict(err) {
-			log.Debug("Conflict detected when updating status", "err", err)
+			log.DebugContext(ctx, "Conflict detected when updating status", "err", err)
 			return nil
 		}
 
-		log.Error("Failed to patch BoundedDeployment status", "err", err)
+		log.ErrorContext(ctx, "Failed to patch BoundedDeployment status", "err", err)
 		return err
 	}
 

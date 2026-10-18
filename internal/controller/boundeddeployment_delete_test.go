@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,13 +30,15 @@ func TestDeletePodWithoutCeiling(t *testing.T) {
 	}
 
 	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "worker-bounded-abc", Namespace: testNamespace},
-		Status:     corev1.PodStatus{Phase: corev1.PodSucceeded},
+		Name:      "worker-bounded-abc",
+		Namespace: testNamespace,
+		Status:    corev1.PodStatus{Phase: corev1.PodSucceeded},
 	}
 
 	boundedDep := &v1.BoundedDeployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: testNamespace},
-		Spec:       v1.BoundedDeploymentSpec{Replicas: 1},
+		Name:      "worker",
+		Namespace: testNamespace,
+		Spec:      v1.BoundedDeploymentSpec{Replicas: 1},
 	}
 
 	reconciler := &BoundedDeploymentReconciler{

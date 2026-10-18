@@ -4,6 +4,8 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/go-logr/logr"
+
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -19,7 +21,7 @@ const (
 	BoundedAnnotationEnabled = "stonal.io/bounded-enabled"
 )
 
-// DeploymentController reconciles Deployment objects
+// DeploymentController reconciles Deployment objects.
 type DeploymentController struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -47,34 +49,9 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// The restartPolicy is left untouched, it will be handled by the BoundedDeployment controller
 
-	enabled := false
-
-	// Check if deployment has our annotation
-	if val, exists := deployment.Annotations[BoundedAnnotationMax]; exists {
-		maxReplicas, err := strconv.Atoi(val)
-		if err != nil {
-			logger.Error(err, "failed to convert max replicas to int")
-			return ctrl.Result{}, err
-		}
-		boundedDep.Spec.MaxReplicas = &maxReplicas
-		enabled = true
-	}
-	if val, exists := deployment.Annotations[BoundedAnnotationMargin]; exists {
-		marginReplicas, err := strconv.Atoi(val)
-		if err != nil {
-			logger.Error(err, "failed to convert margin replicas to int")
-			return ctrl.Result{}, err
-		}
-		boundedDep.Spec.MarginReplicas = &marginReplicas
-		enabled = true
-	}
-	if val, exists := deployment.Annotations[BoundedAnnotationEnabled]; exists {
-		var err error
-		enabled, err = strconv.ParseBool(val)
-		if err != nil {
-			logger.Error(err, "failed to convert enabled to bool")
-			return ctrl.Result{}, err
-		}
+	enabled, err := applyBoundedAnnotations(deployment.Annotations, boundedDep, logger)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if !enabled {
@@ -98,6 +75,47 @@ func (r *DeploymentController) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// applyBoundedAnnotations reads the stonal.io/bounded-* annotations of a Deployment into the
+// BoundedDeployment spec and reports whether bounding is enabled for that Deployment.
+func applyBoundedAnnotations(
+	annotations map[string]string,
+	boundedDep *deploymentv1.BoundedDeployment,
+	logger logr.Logger,
+) (bool, error) {
+	enabled := false
+
+	if val, exists := annotations[BoundedAnnotationMax]; exists {
+		maxReplicas, err := strconv.Atoi(val)
+		if err != nil {
+			logger.Error(err, "failed to convert max replicas to int")
+			return false, err
+		}
+		boundedDep.Spec.MaxReplicas = &maxReplicas
+		enabled = true
+	}
+
+	if val, exists := annotations[BoundedAnnotationMargin]; exists {
+		marginReplicas, err := strconv.Atoi(val)
+		if err != nil {
+			logger.Error(err, "failed to convert margin replicas to int")
+			return false, err
+		}
+		boundedDep.Spec.MarginReplicas = &marginReplicas
+		enabled = true
+	}
+
+	if val, exists := annotations[BoundedAnnotationEnabled]; exists {
+		parsed, err := strconv.ParseBool(val)
+		if err != nil {
+			logger.Error(err, "failed to convert enabled to bool")
+			return false, err
+		}
+		enabled = parsed
+	}
+
+	return enabled, nil
 }
 
 func (r *DeploymentController) SetupWithManager(mgr ctrl.Manager) error {

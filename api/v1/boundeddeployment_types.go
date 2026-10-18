@@ -25,9 +25,9 @@ import (
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// json tags are required: any new field must have a json tag to be serialized.
 
-// BoundedDeploymentSpec defines the desired state of BoundedDeployment
+// BoundedDeploymentSpec defines the desired state of BoundedDeployment.
 type BoundedDeploymentSpec struct {
 	// Minimum number of replicas to for the deployment
 	// +kubebuilder:validation:Minimum=0
@@ -48,7 +48,7 @@ type BoundedDeploymentSpec struct {
 	Template corev1.PodTemplateSpec `json:"template,omitempty"`
 }
 
-// BoundedDeploymentStatus defines the observed state of BoundedDeployment
+// BoundedDeploymentStatus defines the observed state of BoundedDeployment.
 type BoundedDeploymentStatus struct {
 	// Current number of replicas
 	Replicas int `json:"replicas,omitempty"`
@@ -69,7 +69,7 @@ type BoundedDeploymentStatus struct {
 // +kubebuilder:printcolumn:name="Current",type=integer,JSONPath=`.status.replicas`
 // +kubebuilder:printcolumn:name="Ready",type=integer,JSONPath=`.status.readyReplicas`
 
-// BoundedDeployment is the Schema for the boundeddeployments API
+// BoundedDeployment is the Schema for the boundeddeployments API.
 type BoundedDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -84,14 +84,15 @@ var ErrInvalidTemplate = errors.New("invalid template")
 
 // Check validates the MinDeployment.
 func (m *BoundedDeployment) Check() error {
-	if m.Spec.Replicas < 0 {
+	switch {
+	case m.Spec.Replicas < 0:
 		return fmt.Errorf("%w: replicas must be at least 0", ErrInvalidMinMaxReplicas)
-	} else if m.Spec.MarginReplicas != nil && *m.Spec.MarginReplicas < 0 {
+	case m.Spec.MarginReplicas != nil && *m.Spec.MarginReplicas < 0:
 		return fmt.Errorf("%w: margin must be at least 0", ErrInvalidMinMaxReplicas)
-	} else if m.Spec.MaxReplicas != nil && *m.Spec.MaxReplicas < m.Spec.Replicas {
+	case m.Spec.MaxReplicas != nil && *m.Spec.MaxReplicas < m.Spec.Replicas:
 		return fmt.Errorf("%w: max replicas must be greater than or equal to replicas", ErrInvalidMinMaxReplicas)
-	} else if m.Spec.Template.Spec.Containers == nil {
-		return errors.New("%w: template must have at least one container")
+	case m.Spec.Template.Spec.Containers == nil:
+		return fmt.Errorf("%w: template must have at least one container", ErrInvalidTemplate)
 	}
 
 	return nil
@@ -99,7 +100,7 @@ func (m *BoundedDeployment) Check() error {
 
 // +kubebuilder:object:root=true
 
-// BoundedDeploymentList contains a list of BoundedDeployment
+// BoundedDeploymentList contains a list of BoundedDeployment.
 type BoundedDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -1,41 +1,319 @@
 version: "2"
 run:
-  allow-parallel-runners: true
+  concurrency: 8
+  issues-exit-code: 1
+  tests: true
 linters:
   default: none
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    - contextcheck
     - copyloopvar
-    - dupl
+    - decorder
+    - depguard
+    - dogsled
+    - dupword
+    - durationcheck
+    - err113
     - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - forcetypeassert
+    - funlen
     - ginkgolinter
+    - gochecknoinits
+    - gochecksumtype
+    - gocognit
     - goconst
-    - gocyclo
+    - gocritic
+    - godot
+    - godox
+    - goheader
+    - goprintffuncname
+    - gosec
+    - gosmopolitan
     - govet
+    - grouper
+    - importas
+    - inamedparam
     - ineffassign
+    - interfacebloat
     - lll
+    - loggercheck
+    - makezero
+    - mirror
     - misspell
+    - mnd
+    - modernize
+    - musttag
     - nakedret
+    - nestif
+    - nilerr
+    - noctx
+    - nolintlint
+    - nonamedreturns
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
     - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
     - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
     - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - thelper
+    - tparallel
     - unconvert
     - unparam
     - unused
+    - usestdlibvars
+    - varnamelen
+    - wastedassign
+    - whitespace
   settings:
+    depguard:
+      rules:
+        prevent_unmaintained_packages:
+          list-mode: lax
+          files:
+            - $all
+            - "!$test"
+          allow:
+            - $gostd
+          deny:
+            - pkg: io/ioutil
+              desc: "replaced by io and os packages since Go 1.16: https://tip.golang.org/doc/go1.16#ioutil"
+    dogsled:
+      max-blank-identifiers: 2
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    funlen:
+      lines: 80
+      statements: 40
+    exhaustive:
+      default-signifies-exhaustive: true
+    gocognit:
+      min-complexity: 40
+    goconst:
+      min-len: 3
+      # Raised from 3 to 50 after the golangci-lint v2.12 upgrade pulled in
+      # goconst v1.10's "extended detection" (strings in struct fields, map
+      # keys, slice elements, switch cases). The new detection surfaces
+      # hundreds of pre-existing duplications across the codebase; rather than
+      # block the upgrade on a wide cleanup, we keep goconst on for genuinely
+      # excessive repetitions and lower the threshold incrementally as code
+      # is migrated.
+      min-occurrences: 50
+    gocritic:
+      enabled-tags:
+        - performance
+      settings:
+        captLocal:
+          paramsOnly: true
+        rangeValCopy:
+          sizeThreshold: 32
+          skipTestFuncs: true
+        hugeParam:
+          sizeThreshold: 320
+    gocyclo:
+      min-complexity: 15
+    gosec:
+      excludes:
+        - G101
+        - G115
+    godox:
+      keywords:
+        - NOTE
+        - OPTIMIZE
+        - HACK
+    govet:
+      enable:
+        - atomicalign
+        - shadow
+      enable-all: false
+      disable-all: false
+      settings:
+        printf:
+          funcs:
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+    lll:
+      line-length: 120
+      tab-width: 1
+    misspell:
+      locale: US
+      ignore-rules:
+        - someword
+        - immobilier
+        - priorite
+        - hébergement
+        - cancelled
+        - conflit
+        - individuel
+        - organisation
+        - centre
+        - activite
+    nolintlint:
+      require-specific: true
+      # unused //nolint directives are reported by default (allow-unused: false);
+      # the v1-era "require-used" key does not exist in v2 and fails `config verify`.
+    modernize:
+      disable:
+        - newexpr
+    nakedret:
+      max-func-lines: 30
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+    sloglint:
+      context: "scope"
     revive:
       rules:
-        - name: comment-spacings
+        - name: var-naming
+          arguments:
+            - [] # AllowList
+            - [] # DenyList
+            - - skip-package-name-collision-with-go-std: true
+    unparam:
+      check-exported: false
+    tagliatelle:
+      case:
+        overrides:
+          - pkg: cmd/service-lpdi
+            rules:
+              json: snake
+          - pkg: cmd/worker-sftp-to-api
+            rules:
+              json: snake
+          - pkg: cmd/worker-renovate-dispatcher
+            rules:
+              json: snake
+          - pkg: cmd/service-powerbi-gateway/internal/metabase
+            rules:
+              json: kebab
+          - pkg: cmd/service-db-mgmt/pkg/dbcopy
+            rules:
+              json: snake
+          - pkg: cmd/worker-activity-monitor
+            rules:
+              json: snake
+    varnamelen:
+      ignore-names:
+        - err
+      ignore-decls:
+        - c echo.Context
+        - c *gin.Context
+        - t testing.T
+        - i int
+        - T any
+        - tx pgx.Tx
+    whitespace:
+      multi-if: false
+      multi-func: false
   exclusions:
     generated: lax
     rules:
       - linters:
+          - bodyclose
+          - containedctx
+          - err113
+          - forcetypeassert
+          - funlen
+          - goconst
+          - gocritic
+          - gosec
+          - godox
+          - gosmopolitan
           - lll
-        path: api/*
+          - noctx
+          - paralleltest
+          - thelper
+          - varnamelen
+        path: _test\.go
       - linters:
-          - dupl
+          - containedctx
+          - err113
+          - forcetypeassert
+          - funlen
+          - gocritic
+          - gosec
           - lll
-        path: internal/*
+          - noctx
+          - thelper
+          - varnamelen
+        path: mocks
+      - linters:
+          - contextcheck
+          - funlen
+        path: main\.go
+      - linters:
+          - dupword
+        path: repository/
+      # regional_price.go is a static region -> coefficient reference table
+      - linters:
+          - mnd
+        path: pkg/domain/regional_price\.go
+      # lll: struct field declarations with tags cannot be split
+      - linters:
+          - lll
+        source: '^\s+\w+\s+\S+\s+`'
+      # lll: SSM/secret parameter store path loading
+      - linters:
+          - lll
+        source: '\.Load\('
+      # lll: const/var string value assignments (permission names, enums, DSNs)
+      - linters:
+          - lll
+        source: '^\s+\w+\s+(\w+\s+)?=\s*"'
+      # lll: SQL query builder chains and prepared statements
+      - linters:
+          - lll
+        source: '(ColumnExpr|Join|JoinOn|JoinOnOr|On|PrepareContext)\('
+      # lll: test helper setup data
+      - linters:
+          - lll
+        path: testutils/
+      # kubebuilder scaffolding: the scheme is registered from init() by design
+      - linters:
+          - gochecknoinits
+        path: (^api/|main\.go)
+      # kubebuilder marker comments (+kubebuilder:rbac, printcolumn...) cannot be wrapped
+      - linters:
+          - lll
+        source: '^\s*//\s*\+kubebuilder:'
+      # test/ holds the e2e harness: it shells out to make/kubectl/kind on purpose
+      - linters:
+          - gosec
+          - noctx
+        path: ^test/
     paths:
+      - tools/detect-changes
+      - pkg/lib-bimandco-go/tools/oapi-merge
+      # Generated code (oapi-codegen client, mockery mocks): the package doc
+      # comment precedes the "DO NOT EDIT" marker, so the generated-file
+      # heuristic misses it — exclude these generated trees by path.
+      - _generated\.go$
+      - /mocks/
       - third_party$
       - builtin$
       - examples$
@@ -43,9 +321,17 @@ formatters:
   enable:
     - gofmt
     - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/stonal-tech/
   exclusions:
     generated: lax
     paths:
+      - _generated\.go$
+      - /mocks/
       - third_party$
       - builtin$
       - examples$
