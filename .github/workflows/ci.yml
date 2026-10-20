@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -43,7 +43,7 @@ jobs:
           args: -v --timeout=20m
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -58,7 +58,7 @@ jobs:
         run: make test
 
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -75,7 +75,7 @@ jobs:
     # job above never requires touching the org ruleset.
     needs: [lint, test, build]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Fail if any needed job did not succeed
         run: |
